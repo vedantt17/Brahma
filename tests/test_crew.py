@@ -103,3 +103,11 @@ def test_failed_source_is_reported_as_coverage_gap():
     assert lit["result"]["status"] == "gap"
     lead = trace["agents"][0]["result"]
     assert lead["status"] == "gap"
+
+
+def test_successful_news_fallback_is_not_an_adverse_media_gap():
+    trace = crew.trace(_investigation(
+        sources_consulted=dict(ALL_OK, gdelt=False, google_news=True),
+        media_summary={"available": True, "sources": 0, "peak_severity": 0}))
+    media = next(a for a in trace["agents"] if a["id"] == "adverse_media_analyst")
+    assert media["result"]["status"] == "clear"

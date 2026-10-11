@@ -52,7 +52,13 @@ cloud environment, allow `api.gleif.org`, `api.gdeltproject.org`, `www.sec.gov`,
 `sanctionslistservice.ofac.treas.gov`, and `www.treasury.gov`. SEC also requires
 a real contact User-Agent. An unavailable source is a coverage gap, not a
 verified identity or a clean screening result.
-The GDELT DOC API covers a recent window of up to three months. The media panel
+The GDELT DOC API covers a recent window of up to three months. If GDELT fails
+or returns no headlines, the app tries public Google News RSS (`news.google.com`)
+within a bounded timeout. Allow that domain for the fallback. Provider status
+is recorded separately; a healthy fallback can supply news coverage while
+GDELT remains unavailable. Headlines retain their publisher, date, link and
+retrieval provider. This is an adverse-headline search, not a general news feed.
+The media panel
 distinguishes source failures, searches returning no adverse headlines, and
 articles hidden by selected filters. It is not a complete news archive.
 News queries remove trailing incorporation forms (`Anthropic, PBC` searches

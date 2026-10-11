@@ -18,6 +18,8 @@ from app.strategy import board
 
 @pytest.fixture(autouse=True)
 def offline(monkeypatch):
+    from app.sources import news_rss
+    monkeypatch.setattr(news_rss, "fetch", AsyncMock(return_value=None))
     async def forbidden(*args, **kwargs):
         pytest.fail("External HTTP is forbidden in offline API tests")
 
@@ -218,6 +220,36 @@ def test_rejected_registry_lookalike_does_not_replace_requested_subject(api, mon
     assert result["supplier"]["verified"] is False
     assert result["supplier"]["lei"] is None
     assert result["entity_resolution"]["selected"] is None
+
+
+def test_live_api_uses_rss_fallback_as_news_coverage_with_correct_provenance(api, monkeypatch):
+    from app.sources import news_rss
+    from datetime import datetime, timezone
+    from email.utils import format_datetime
+
+    monkeypatch.setattr(pipeline.sec, "search", AsyncMock(return_value=[]))
+    monkeypatch.setattr(pipeline.gleif, "search", AsyncMock(return_value=[]))
+    monkeypatch.setattr(pipeline.gdelt, "search", AsyncMock(side_effect=RuntimeError("503")))
+    feed = ('<rss><channel><item><title>Anthropic faces copyright lawsuit</title>'
+            '<link>https://news.google.com/rss/articles/test</link><pubDate>'
+            + format_datetime(datetime.now(timezone.utc))
+            + '</pubDate><source>Example News</source></item></channel></rss>')
+    monkeypatch.setattr(news_rss, "fetch", AsyncMock(return_value=feed))
+    monkeypatch.setattr(pipeline.courtlistener, "search", AsyncMock(return_value={
+        "available": True, "cases": [], "note": None}))
+    monkeypatch.setattr(ofac, "screen", AsyncMock(return_value={"match": False, "list_size": 100}))
+    response = api("POST", "/api/v1/supplier/investigate", json={"name": "Anthropic"})
+    assert response.status_code == 200
+    result = response.json()
+    assert result["sources_consulted"]["gdelt"] is False
+    assert result["sources_consulted"]["google_news"] is True
+    assert result["media_summary"]["available"] is True
+    assert result["media_summary"]["total"] == 1
+    assert result["risk"]["coverage_assessment"]["complete"] is True
+    assert any(e["source"] == "Google News RSS" for e in result["evidence"])
+    assert "unavailable" not in result["agent_summary"]["adverse_media_assessment"]
+    assert "[E" in result["agent_summary"]["adverse_media_assessment"]
+    assert api("GET", f"/api/v1/investigations/{result['investigation_id']}").json() == result
 
 
 def test_error_and_not_found_contracts(api, monkeypatch):

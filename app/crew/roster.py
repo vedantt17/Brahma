@@ -334,14 +334,16 @@ def trace(inv: dict[str, Any]) -> dict[str, Any]:
     }
 
     # 3 - Adverse media -----------------------------------------------------
-    media_ran = _consulted(inv, "gdelt")
+    media_ran = media_summary.get("available", _consulted(inv, "gdelt"))
+    if _consulted(inv, "google_news"):
+        media_ran = True
     n_media = len(media)
     results["adverse_media_analyst"] = {
         "status": ("flag" if n_media else "clear") if media_ran is not False else "gap",
         "headline": (
             f"{n_media} adverse article(s) from {media_summary.get('sources', 0)} source(s)"
             if media_ran is not False
-            else "GDELT unavailable - adverse media is a coverage gap"
+            else "News providers unavailable - adverse media is a coverage gap"
         ),
         "metrics": [
             {"label": "Articles", "value": n_media},

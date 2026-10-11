@@ -276,6 +276,16 @@ toggleTerm('other');return {before,after:node('riskbox').innerHTML,
         self.assertIn("Searched: Example Entity", result["count"])
         self.assertIn("Results limited", result["count"])
 
+    def test_healthy_news_fallback_is_not_rendered_as_unavailable_gdelt(self):
+        data = fixture()
+        data["sources_consulted"] = {"gdelt": False, "google_news": True,
+                                    "ofac": True, "courtlistener": True}
+        data["media_summary"].update(available=True,
+            search_metadata={"provider": "Google News RSS", "fallback": True})
+        result = self.run_js("renderDashboard();renderResults();return {risk:node('riskbox').innerHTML,count:node('mediaCount').textContent};", data)
+        self.assertNotIn("Unavailable / not screened", result["risk"])
+        self.assertIn("Google News RSS (fallback)", result["count"])
+
     def test_sample_and_escaped_entity_metadata_are_preserved(self):
         data = fixture()
         hostile = '<img src=x onerror="alert(1)">'

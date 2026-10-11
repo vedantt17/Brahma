@@ -1,5 +1,36 @@
 # Brahma build verification
 
+## Live news recovery — October 11, 2026
+
+- GDELT returned HTTP 503 upstream connection timeouts. Added a bounded,
+  independent Google News RSS fallback on primary failure or empty headline
+  retrieval. It uses the normalized subject and adverse-topic query; preserves
+  publisher, link, publication date and provider; filters stale, irrelevant,
+  duplicate and untagged headlines. No article body is invented.
+- RSS parser rejects malformed feeds, DTD/entity declarations and oversized
+  payloads. Network calls use the shared cache, rate limits and fixed destination.
+  Primary and fallback have separate availability flags. Required coverage
+  names news rather than requiring a specific provider; GDELT is never marked
+  successful merely because the fallback worked.
+- Saved `news.google.com` to the environment network draft, preserving existing
+  source domains and package-manager preset. Initial feed requests were proxy
+  denied; a subsequent request succeeded with 100 RSS items. Draft persistence
+  alone is not evidence of publication; successful live requests establish
+  current-instance connectivity.
+- Real API `{"name":"Anthropic"}` request returned HTTP 200 in 15.70 seconds,
+  correct `ANTHROPIC, PBC`/LEI, Google News availability true, 56 matching
+  headlines from 100 retrieved, and 40 displayed records with explicit limits.
+  GDELT and OFAC were unavailable; required missing coverage was only OFAC.
+- Full suite: **247 tests and 230 subtests passed** in 51.23 seconds.
+  After adding fallback-aware crew rendering, its focused suite passed all
+  seven tests. API tests exercise actual source parsing/orchestration with
+  controlled RSS and verify persisted evidence provenance; no fixtures are
+  presented as live retrieval. JavaScript syntax and whitespace checks passed.
+- Chromium submitted the real name-only search through the live API and showed
+  40 articles with the fallback label at 1440px and 390px. No page errors or
+  horizontal overflow. Screenshots: `artifacts/news-live-1440.png` and
+  `artifacts/news-live-390.png`.
+
 ## Name-only subject selection correction — October 11, 2026
 
 - User reproduced `Anthropic` being renamed to an ETF with an unverified 0.53

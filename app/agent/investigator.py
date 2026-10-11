@@ -40,6 +40,7 @@ def _build_payload(investigation: dict) -> str:
             "sanctions": investigation["sanctions"],
             "litigation": investigation["litigation"],
             "adverse_media": investigation["adverse_media"],
+            "media_summary": investigation.get("media_summary", {}),
             "risk": investigation["risk"],
             "evidence": investigation["evidence"],
             "sources_consulted": investigation["sources_consulted"],
@@ -169,9 +170,10 @@ def _fallback_report(investigation: dict) -> dict:
         media_text = (
             f"{len(media)} negative headline(s) found in the last "
             f"{investigation.get('media_summary', {}).get('lookback_months', 3)} months. Most severe: "
-            f"{media[0]['title']}." + _cite(evidence, "GDELT")
+            f"{media[0]['title']}." + _cite(evidence, media[0].get("provider") or "GDELT")
         )
-    elif not investigation["sources_consulted"].get("gdelt"):
+    elif investigation.get("media_summary", {}).get("available") is False or not (
+        investigation["sources_consulted"].get("gdelt") or investigation["sources_consulted"].get("google_news")):
         media_text = "Adverse-media source unavailable - coverage could not be checked."
     else:
         media_text = "No evidence available - no negative coverage matched."

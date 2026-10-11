@@ -73,6 +73,7 @@ class Settings(BaseSettings):
         # GDELT asks for no more than one request every 5 seconds and returns a
         # plain-text 429 above that; 5s exactly still trips it, so allow ~8s.
         "api.gdeltproject.org": 0.12,
+        "news.google.com": 0.5,
         "www.courtlistener.com": 2.0,
     }
 

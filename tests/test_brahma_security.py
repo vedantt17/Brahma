@@ -22,6 +22,8 @@ from app.strategy import board, samples
 
 @pytest.fixture(autouse=True)
 def no_external_network(monkeypatch):
+    from app.sources import news_rss
+    monkeypatch.setattr(news_rss, "fetch", AsyncMock(return_value=None))
     async def forbidden(*args, **kwargs):
         pytest.fail("External network is forbidden in security regressions")
     monkeypatch.setattr(httpx.AsyncHTTPTransport, "handle_async_request", forbidden)
@@ -186,7 +188,7 @@ def test_verified_identity_with_one_screening_outage_cannot_authorize_onboarding
     )
     assert risk["score"] == expected_score  # Existing point rules are unchanged.
     assert risk["coverage_assessment"]["complete"] is False
-    assert risk["coverage_assessment"]["missing_sources"] == [missing]
+    assert risk["coverage_assessment"]["missing_sources"] == ["news" if missing == "gdelt" else missing]
     assert "Onboarding on hold" in recommendation(risk)
     assert "Standard onboarding may proceed" not in recommendation(risk)
 

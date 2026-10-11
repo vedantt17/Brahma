@@ -139,7 +139,7 @@ def evaluate(
                     f"news search; most severe: {adverse_media[0]['title'][:140]}"
                 ),
                 severity=severity,
-                source="GDELT",
+                source=adverse_media[0].get("provider") or "GDELT",
                 confidence=max(a["confidence"] for a in adverse_media),
                 evidence_urls=[a["url"] for a in adverse_media[:3] if a.get("url")],
             )
@@ -190,8 +190,9 @@ def evaluate(
 
     # Completeness is separate from adverse-event severity. Keep scoring rules
     # unchanged, but never treat an unavailable screen as onboarding clearance.
-    required_sources = ("ofac", "gdelt", "courtlistener")
+    required_sources = ("ofac", "news", "courtlistener")
     coverage = {name: bool(sources_consulted.get(name)) for name in required_sources}
+    coverage["news"] = bool(sources_consulted.get("gdelt") or sources_consulted.get("google_news"))
     coverage["ofac"] = coverage["ofac"] and bool(sanctions.get("list_size"))
     coverage["courtlistener"] = coverage["courtlistener"] and bool(litigation.get("available"))
     missing_sources = [name for name in required_sources if not coverage[name]]

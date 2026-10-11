@@ -26,7 +26,7 @@ from app.resolution import EntityRecord, resolve, verdict
 from app.resolution.embeddings import active_backend
 from app.resolution.normalize import normalize_domain, normalize_name
 from app.risk import evaluate, recommendation
-from app.sources import courtlistener, gdelt, gleif, ofac, optional_sources, sec
+from app.sources import courtlistener, gdelt, gleif, news, ofac, optional_sources, sec
 
 log = logging.getLogger(__name__)
 
@@ -62,7 +62,7 @@ async def investigate(
         _safe("gleif", gleif.search(name, country, registration_number=registration_number)
               if registration_number and entity_type == "organization"
               else gleif.search(name, country), []),
-        _safe("gdelt", gdelt.search(name), []),
+        _safe("gdelt", news.search(name), []),
         _safe("courtlistener", courtlistener.search(name),
               {"available": False, "cases": [], "note": "not run"}),
         _safe("ofac", ofac.screen(name, country, date_of_birth),
@@ -107,6 +107,10 @@ async def investigate(
     media: list[dict] = results.get("gdelt")
     if media is None:
         media = []
+    news_metadata = getattr(media, "search_metadata", {}) or {}
+    if "providers" in news_metadata:
+        consulted.update(news_metadata["providers"])
+    media_available = bool(consulted["gdelt"] or consulted.get("google_news"))
     litigation: dict = results.get("courtlistener") or {
         "available": False, "cases": [], "note": "not run"
     }
@@ -173,7 +177,7 @@ async def investigate(
     ownership = _build_ownership(identity_records)
     transactions = _build_transactions(identity_records, supplier["name"])
     media_summary = _summarize_media(media)
-    media_summary["available"] = consulted["gdelt"]
+    media_summary["available"] = media_available
     media_summary["lookback_months"] = gdelt.search_months()
     media_summary["search_metadata"] = getattr(media, "search_metadata", None)
 
@@ -763,7 +767,7 @@ def _build_evidence(
 
     for article in media[:8]:
         add(
-            "GDELT",
+            article.get("provider") or "GDELT",
             f"{article['title']} - {article['source']}",
             article.get("url"),
             {

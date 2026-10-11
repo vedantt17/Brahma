@@ -570,7 +570,7 @@ function renderDashboard(){
   const d=DATA,s=d.supplier,r=d.risk,ms=d.media_summary;
   const level=["low","medium","high","critical"].includes(r.level)?r.level:"neutral";
   const sanctionsAvailable=d.sanctions.available!==false&&d.sources_consulted?.ofac!==false&&Number(d.sanctions.list_size)>0;
-  const mediaUnavailable=ms.available===false||d.sources_consulted?.gdelt===false;
+  const mediaUnavailable=ms.available===false||(ms.available!==true&&d.sources_consulted?.gdelt===false&&!d.sources_consulted?.google_news);
   const litigationUnavailable=d.litigation.available===false||d.sources_consulted?.courtlistener===false;
   const coverage=r.coverage_assessment||{},missing=coverage.missing_sources||[];
   const sample=isSample(d,DATA_ORIGIN);
@@ -800,13 +800,14 @@ function renderResults(){
   if(sort==="date")rows=[...rows].sort((a,b)=>(b.date||"").localeCompare(a.date||""));
   else if(sort==="bias")rows=[...rows].sort((a,b)=>((b.bias||{}).score||0)-((a.bias||{}).score||0));
   else rows=[...rows].sort((a,b)=>b.severity-a.severity);
-  const unavailable=DATA.media_summary?.available===false||DATA.sources_consulted?.gdelt===false;
+  const unavailable=DATA.media_summary?.available===false||(DATA.media_summary?.available!==true&&DATA.sources_consulted?.gdelt===false&&!DATA.sources_consulted?.google_news);
   const searchMetadata=DATA.media_summary?.search_metadata||{};
   const searchNames=searchMetadata.search_name?[searchMetadata.search_name]:[];
   const limitNote=searchMetadata.result_limit_reached?" · Results limited":"";
   const queryNote=searchNames.length?` · Searched: ${searchNames.join(" / ")}`:"";
+  const providerNote=searchMetadata.provider?` · ${searchMetadata.provider}${searchMetadata.fallback?" (fallback)":""}`:"";
   const windowNote=DATA.media_summary?.lookback_months?` · Last ${num(DATA.media_summary.lookback_months)} months`:"";
-  $("mediaCount").textContent=unavailable&&!all.length?"Live media source unavailable":`Showing ${rows.length} of ${all.length} matches${windowNote}${limitNote}${queryNote}`;
+  $("mediaCount").textContent=unavailable&&!all.length?"Live media source unavailable":`Showing ${rows.length} of ${all.length} matches${windowNote}${limitNote}${queryNote}${providerNote}`;
   if(!rows.length){
     const message=all.length?"No articles match the selected filters.":unavailable
       ?"The live news source did not respond. Media coverage is unavailable; this is not a clean screening result."
