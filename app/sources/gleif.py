@@ -7,6 +7,7 @@ LEI-to-LEI parent relationships that expose ownership structure.
 from __future__ import annotations
 
 import logging
+import re
 
 from app.http_client import fetch_json
 from app.resolution.engine import EntityRecord
@@ -50,10 +51,19 @@ async def _relation(lei: str, kind: str) -> dict | None:
 
 
 async def search(
-    name: str, country: str | None = None, limit: int = 8
+    name: str, country: str | None = None, limit: int = 8,
+    *, registration_number: str | None = None,
 ) -> list[EntityRecord]:
-    params = {"filter[fulltext]": name, "page[size]": str(limit)}
-    data = await fetch_json(SEARCH_URL, params=params, ttl_hours=24)
+    identifier = (registration_number or "").strip().upper()
+    if re.fullmatch(r"[A-Z0-9]{18}[0-9]{2}", identifier):
+        # An LEI identifies a registry record directly; do not discard it and
+        # rely on a fuzzy full-text name query instead.
+        data = await fetch_json(f"{SEARCH_URL}/{identifier}", ttl_hours=24)
+        if isinstance(data, dict) and isinstance(data.get("data"), dict):
+            data = {**data, "data": [data["data"]]}
+    else:
+        params = {"filter[fulltext]": name, "page[size]": str(limit)}
+        data = await fetch_json(SEARCH_URL, params=params, ttl_hours=24)
     if not isinstance(data, dict) or not isinstance(data.get("data"), list):
         raise RuntimeError("GLEIF search unavailable or malformed")
 

@@ -58,7 +58,9 @@ async def investigate(
     # ---- 1. Live source fan-out ------------------------------------------
     tasks = [
         _safe("sec", sec.search(name, country), []),
-        _safe("gleif", gleif.search(name, country), []),
+        _safe("gleif", gleif.search(name, country, registration_number=registration_number)
+              if registration_number and entity_type == "organization"
+              else gleif.search(name, country), []),
         _safe("gdelt", gdelt.search(name), []),
         _safe("courtlistener", courtlistener.search(name),
               {"available": False, "cases": [], "note": "not run"}),
@@ -153,6 +155,8 @@ async def investigate(
     ownership = _build_ownership(resolutions)
     transactions = _build_transactions(resolutions, supplier["name"])
     media_summary = _summarize_media(media)
+    media_summary["available"] = consulted["gdelt"]
+    media_summary["lookback_months"] = gdelt.search_months()
 
     # ---- 5. Evidence layer -----------------------------------------------
     evidence = _build_evidence(resolutions, media, litigation, sanctions)

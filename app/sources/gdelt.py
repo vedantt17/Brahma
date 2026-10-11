@@ -21,6 +21,11 @@ log = logging.getLogger(__name__)
 
 DOC_API = "https://api.gdeltproject.org/api/v2/doc/doc"
 
+
+def search_months() -> int:
+    """The DOC API searches its recent three-month index, not a full archive."""
+    return max(1, min(settings.gdelt_months, 3))
+
 _SPLIT = re.compile(r"[^\w]+")
 
 # Automated market-data wire copy. In these the bank or broker is the analyst
@@ -73,7 +78,7 @@ async def search(name: str, max_records: int = 75) -> list[dict]:
         "mode": "artlist",
         "format": "json",
         "maxrecords": str(max_records),
-        "timespan": f"{settings.gdelt_months}m",
+        "timespan": f"{search_months()}months",
         "sort": "hybridrel",
     }
     data = await fetch_json(DOC_API, params=params, ttl_hours=6)

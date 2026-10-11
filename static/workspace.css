@@ -296,3 +296,5 @@ button, .btn, a, summary, input, textarea, select { transition: color 160ms var(
 .search-live p { margin: 0 0 10px; font-size: 13px; color: var(--blue-ink); }
 .search-live .ghost { width: 100%; justify-content: space-between; margin-bottom: 6px; }
 .search-live small { display: block; margin-top: 6px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+
+#cancelInvestigation[hidden] { display: none; }

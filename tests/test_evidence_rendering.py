@@ -125,6 +125,49 @@ vm.runInContext("DATA=fixture;DATA_ORIGIN='live';",context);
 
 @unittest.skipUnless(NODE, "Node is required for renderer tests")
 class EvidenceRenderingTests(unittest.TestCase):
+    def test_search_for_same_subject_preserves_completed_form_details(self):
+        result = self.run_js("""
+TYPE='organization';node('entSearch').value='Anthropic';node('f_name').value='Anthropic';
+node('f_country').value='United States';node('f_reg').value='984500B6DEB8CEBC4Z70';
+runInvestigation=()=>true;startEntitySearch('organization');
+return {country:node('f_country').value,registration:node('f_reg').value};
+""")
+        self.assertEqual(result, {"country": "United States",
+                                  "registration": "984500B6DEB8CEBC4Z70"})
+
+    def test_empty_media_distinguishes_source_outage_from_no_results(self):
+        data = fixture()
+        data["adverse_media"] = []
+        data["sources_consulted"] = {"gdelt": False}
+        result = self.run_js("renderResults();return {html:node('resultsList').innerHTML,count:node('mediaCount').textContent};", data)
+        self.assertIn("did not respond", result["html"])
+        self.assertEqual(result["count"], "Live media source unavailable")
+        data["sources_consulted"]["gdelt"] = True
+        html = self.run_js("renderResults();return node('resultsList').innerHTML;", data)
+        self.assertIn("No adverse headlines were returned", html)
+        self.assertNotIn("selected filters", html)
+
+    def test_lei_in_aliases_moves_to_registration_without_losing_names(self):
+        result = self.run_js("""
+TYPE='organization';node('f_reg').value='';
+node('f_aliases').value='Anthropic AI, 984500b6deb8cebc4z70';
+normalizeInvestigationIdentifier();
+return {registration:node('f_reg').value,aliases:node('f_aliases').value};
+""")
+        self.assertEqual(result, {"registration": "984500B6DEB8CEBC4Z70",
+                                  "aliases": "Anthropic AI"})
+
+    def test_identifier_normalization_preserves_explicit_registration_and_people(self):
+        result = self.run_js("""
+TYPE='organization';node('f_reg').value='ABC-123';
+node('f_aliases').value='984500B6DEB8CEBC4Z70';normalizeInvestigationIdentifier();
+const company=node('f_reg').value;
+TYPE='individual';node('f_reg').value='';normalizeInvestigationIdentifier();
+return {company,person:node('f_reg').value,aliases:node('f_aliases').value};
+""")
+        self.assertEqual(result, {"company": "ABC-123", "person": "",
+                                  "aliases": "984500B6DEB8CEBC4Z70"})
+
     def test_unknown_search_offers_live_actions_and_escapes_query(self):
         html = self.run_js("""
 node('entSearch').value='Anthropic <img src=x>';

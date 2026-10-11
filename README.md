@@ -40,6 +40,11 @@ company** / **Search person** for any typed name. Those actions start a live
 investigation; they do not require a matching sample. They clear previous subject
 details so a new name is not searched with another entity's country or aliases.
 Use the main investigation form when supplying additional identity details.
+Searching the same name/type from the sidebar preserves those completed details.
+Put an LEI in **Registration number**; recognizable LEIs accidentally entered as
+aliases are moved there before submission. GLEIF looks up that identifier directly.
+The report shows the registry's legal name, which may differ from a trading name
+(for example, `ANTHROPIC, PBC` for Anthropic).
 
 Live results require outbound access to the source adapters. In a restricted
 cloud environment, allow `api.gleif.org`, `api.gdeltproject.org`, `www.sec.gov`,
@@ -47,6 +52,9 @@ cloud environment, allow `api.gleif.org`, `api.gdeltproject.org`, `www.sec.gov`,
 `sanctionslistservice.ofac.treas.gov`, and `www.treasury.gov`. SEC also requires
 a real contact User-Agent. An unavailable source is a coverage gap, not a
 verified identity or a clean screening result.
+The GDELT DOC API covers a recent window of up to three months. The media panel
+distinguishes source failures, searches returning no adverse headlines, and
+articles hidden by selected filters. It is not a complete news archive.
 
 The existing API routes remain compatible. Primary endpoint:
 

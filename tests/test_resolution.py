@@ -31,6 +31,11 @@ def test_legal_suffixes_collapse():
     assert normalize_name("ABC Manufacturing GmbH") == "abc manufacturing"
 
 
+def test_public_benefit_corporation_suffix_does_not_change_identity():
+    assert normalize_name("ANTHROPIC, PBC") == normalize_name("Anthropic")
+    assert normalize_name("Anthropic AI Lab Ecosystem ETF") != normalize_name("Anthropic")
+
+
 def test_normalize_never_empties_a_name():
     assert normalize_name("The Group Ltd") != ""
 

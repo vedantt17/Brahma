@@ -1,5 +1,33 @@
 # Brahma build verification
 
+## Live identity and media correction — October 11, 2026
+
+- Reproduced a fuzzy `Anthropic` query selecting an Anthropic-related ETF.
+  The public GLEIF lookup for `984500B6DEB8CEBC4Z70` returned `ANTHROPIC, PBC`.
+  Registration numbers now reach the adapter, and LEIs select the direct record
+  endpoint. PBC is treated as a legal suffix during name matching.
+- Browser verification submitted the user's company, country, website, city and
+  address through the real API, including the LEI initially entered in aliases.
+  The request preserved those fields, moved the LEI into registration, and returned
+  `ANTHROPIC, PBC` with the matching LEI. Desktop and 390px layouts had no overflow
+  or browser page errors. Elapsed-time feedback and cancellation were exercised
+  with a held request; no claim is made that browser cancellation stops work
+  already running on the server.
+- Media rendering now distinguishes source outages, genuinely empty returned
+  evidence and filter-empty views. Responses include media availability and the
+  search window; GDELT requests are capped to its recent three-month index.
+- Direct GDELT requests returned HTTP 503 connection timeouts. SEC, GLEIF and
+  CourtListener responded during the live reproduction; OFAC and GDELT coverage
+  remained unavailable. No missing articles or sanctions checks are fabricated.
+- Added regression coverage for exact LEI requests, failed identifier lookups,
+  ordinary registration fallback, identifier field correction, preserved form
+  details, PBC normalization, media empty states and the GDELT search window.
+- Final full suite: **208 tests and 230 subtests passed** in 48.87 seconds.
+  Both JavaScript syntax checks and `git diff --check` passed. The restarted
+  server returned HTTP 200 in 21.85 seconds for the complete Anthropic request,
+  with the expected legal name/LEI, identity score 0.7842 and explicit missing
+  OFAC/GDELT coverage.
+
 ## Entity search correction — October 11, 2026
 
 - The former sample-only search now offers explicit company/person live actions.

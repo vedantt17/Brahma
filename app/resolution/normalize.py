@@ -15,7 +15,7 @@ from urllib.parse import urlparse
 # name, not the jurisdiction's incorporation vocabulary.
 LEGAL_SUFFIXES = {
     "inc", "incorporated", "corp", "corporation", "co", "company",
-    "llc", "lllp", "llp", "lp", "ltd", "limited", "plc", "pllc",
+    "llc", "lllp", "llp", "lp", "ltd", "limited", "plc", "pllc", "pbc",
     "gmbh", "mbh", "ag", "kg", "kgaa", "ug", "se",
     "sa", "sas", "sarl", "sprl", "nv", "bv", "cv", "oy", "ab", "as", "asa",
     "spa", "srl", "sl", "sp", "zoo", "doo", "dd", "ad",

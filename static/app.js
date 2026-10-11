@@ -190,7 +190,10 @@ function startEntitySearch(type){
   const name=$("entSearch").value.trim();
   if(!name||!["organization","individual"].includes(type))return;
   cancelRequest("screen");
-  for(const id of ["f_aliases","f_dob","f_reg","f_country","f_city","f_website","f_address"])$(id).value="";
+  const sameSubject=TYPE===type&&$("f_name").value.trim().toLowerCase()===name.toLowerCase();
+  if(!sameSubject){
+    for(const id of ["f_aliases","f_dob","f_reg","f_country","f_city","f_website","f_address"])$(id).value="";
+  }
   setType(type);$("f_name").value=name;$("f_name").removeAttribute("aria-invalid");
   $("run").disabled=false;
   $("f_name").focus();
@@ -218,13 +221,32 @@ async function loadDemo(id){
   }catch(e){if(isCurrent(ticket)){status("status",e.message,true);status("evidenceStatus",e.message,true);}}
   finally{finishRequest(ticket);}
 }
+function normalizeInvestigationIdentifier(){
+  if(TYPE!=="organization"||$("f_reg").value.trim())return;
+  const aliases=$("f_aliases").value.split(",").map(s=>s.trim()).filter(Boolean);
+  const index=aliases.findIndex(value=>/^[A-Z0-9]{18}[0-9]{2}$/i.test(value));
+  if(index<0)return;
+  $("f_reg").value=aliases[index].toUpperCase();aliases.splice(index,1);
+  $("f_aliases").value=aliases.join(", ");
+}
+function cancelInvestigation(){
+  cancelRequest("screen");$("run").disabled=false;$("cancelInvestigation").hidden=true;
+  status("status","Investigation cancelled. You can edit the details and retry.");
+}
 async function runInvestigation(){
   const name=$("f_name").value.trim();
   if(!name){$("status").textContent="Enter a name to screen.";return;}
+  normalizeInvestigationIdentifier();
   const ticket=beginRequest("screen");
+  $("cancelInvestigation").hidden=false;
   $("run").disabled=true;$("status").className="status";
   $("status").textContent="Querying OFAC, SEC EDGAR, GLEIF, GDELT and CourtListener...";
   const t0=performance.now();
+  const progress=setInterval(()=>{
+    if(!isCurrent(ticket))return;
+    const seconds=Math.floor((performance.now()-t0)/1000);
+    status("status",seconds<60?`Checking live sources… ${seconds}s elapsed. Some sources can take about a minute.`:`Waiting for the report… ${seconds}s elapsed. You can cancel and retry.`);
+  },1000);
   try{
     const data=validateInvestigation(await requestJSON(ticket,"/api/v1/supplier/investigate",{method:"POST",
       headers:{"Content-Type":"application/json"},
@@ -237,8 +259,11 @@ async function runInvestigation(){
     if(!isCurrent(ticket))return;
     DATA=data;CURRENT_ID=null;DATA_ORIGIN="live";
     afterData(`Received report in ${((performance.now()-t0)/1000).toFixed(1)}s. ${provenance(DATA,DATA_ORIGIN)}; review source coverage.`);
+    if(!Object.values(data.sources_consulted||{}).some(Boolean)){
+      status("evidenceStatus","No live sources responded. This report cannot verify the entity or provide a completed risk check. Check access to the data sources, then retry.",true);
+    }
   }catch(e){if(isCurrent(ticket))status("status",e.message,true);}
-  finally{if(isCurrent(ticket))$("run").disabled=false;finishRequest(ticket);}
+  finally{clearInterval(progress);if(isCurrent(ticket)){$("run").disabled=false;$("cancelInvestigation").hidden=true;}finishRequest(ticket);}
 }
 function afterData(msg){
   cancelRequest("insight");
@@ -273,7 +298,7 @@ function setMode(mode){
   if(mode==="strategy")initStrategy();
   updateWorkspace();refreshIcons();
 }
-function newScreening(){cancelRequest("screen");$("run").disabled=false;status("status","");status("evidenceStatus","");setMode("screen");go(1);}
+function newScreening(){$("cancelInvestigation").hidden=true;cancelRequest("screen");$("run").disabled=false;status("status","");status("evidenceStatus","");setMode("screen");go(1);}
 
 /* strategy board */
 const SEAT_ICONS={
@@ -560,6 +585,9 @@ function renderDashboard(){
     <span class="case-meta-item">${esc(s.entity_type||"Type not reported")}</span>
     <span class="case-meta-item">Identity: ${esc(s.status||"Not resolved")}</span>
     <span class="case-mode">${esc(provenance(d,DATA_ORIGIN))}</span>`;
+  if(!sample&&d.query?.name&&d.query.name!==s.name){
+    $("caseMeta").innerHTML+=`<span class="case-meta-item">Searched as ${esc(d.query.name)} · ${esc(s.primary_source||"Source")} legal name shown</span>`;
+  }
   $("riskbox").classList.add("risk-overview");
   $("riskbox").innerHTML=`
     <div class="risk-score-block"><span class="risk-label">Overall risk</span>
@@ -772,8 +800,15 @@ function renderResults(){
   if(sort==="date")rows=[...rows].sort((a,b)=>(b.date||"").localeCompare(a.date||""));
   else if(sort==="bias")rows=[...rows].sort((a,b)=>((b.bias||{}).score||0)-((a.bias||{}).score||0));
   else rows=[...rows].sort((a,b)=>b.severity-a.severity);
-  $("mediaCount").textContent=`Showing ${rows.length} of ${all.length} matches`;
-  if(!rows.length){$("resultsList").innerHTML=`<tr><td colspan="6" class="empty-cell">No articles match the selected filters.</td></tr>`;return;}
+  const unavailable=DATA.media_summary?.available===false||DATA.sources_consulted?.gdelt===false;
+  const windowNote=DATA.media_summary?.lookback_months?` · Last ${num(DATA.media_summary.lookback_months)} months`:"";
+  $("mediaCount").textContent=unavailable&&!all.length?"Live media source unavailable":`Showing ${rows.length} of ${all.length} matches${windowNote}`;
+  if(!rows.length){
+    const message=all.length?"No articles match the selected filters.":unavailable
+      ?"The live news source did not respond. Media coverage is unavailable; this is not a clean screening result."
+      :"No adverse headlines were returned for this name. This limited news search is not a complete media review or a clean risk finding.";
+    $("resultsList").innerHTML=`<tr><td colspan="6" class="empty-cell">${message}</td></tr>`;return;
+  }
   $("resultsList").innerHTML=rows.map((a,i)=>{
     const title=externalLink(a.url,highlightTerms(a.title,a));
     const cats=(a.categories||[]).slice(0,2).map(catTag).join(" ");

@@ -10,7 +10,7 @@
 <link rel="preload" href="/static/vendor/geist-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/static/brahma.css?v=workspace-1">
 <link rel="stylesheet" href="/static/evidence-workspace.css?v=workspace-5">
-<link rel="stylesheet" href="/static/workspace.css?v=entity-search-5">
+<link rel="stylesheet" href="/static/workspace.css?v=live-search-details-6">
 </head>
 <body>
 <a class="skip-link" href="#workspace">Skip to workspace</a>
@@ -48,15 +48,15 @@
             <div class="seg" aria-label="Subject type"><button id="tOrg" class="on" onclick="setType('organization')"><i data-lucide="building-2" aria-hidden="true"></i>Organization</button><button id="tInd" onclick="setType('individual')"><i data-lucide="user-round" aria-hidden="true"></i>Individual</button></div>
             <div class="grid">
               <div class="full"><label id="lblName" for="f_name">Legal name <span class="dim">(required)</span></label><input id="f_name" placeholder="e.g. Wells Fargo &amp; Company" autocomplete="organization" maxlength="300" required></div>
-              <div class="full"><label for="f_aliases">Aliases or trading names</label><input id="f_aliases" placeholder="Comma-separated aliases" maxlength="1000"></div>
+              <div class="full"><label for="f_aliases">Aliases or trading names</label><input id="f_aliases" placeholder="Trading names, separated by commas" maxlength="1000"></div>
               <div id="wrapDob" style="display:none"><label for="f_dob">Date of birth</label><input id="f_dob" type="date"></div>
-              <div id="wrapReg"><label for="f_reg">Registration number</label><input id="f_reg" placeholder="Company number or LEI" maxlength="100"></div>
+              <div id="wrapReg"><label for="f_reg">Registration number</label><input id="f_reg" placeholder="Company number or 20-character LEI" maxlength="100"></div>
               <div><label for="f_country">Country</label><input id="f_country" placeholder="e.g. United States" autocomplete="country-name" maxlength="100"></div>
               <div><label for="f_city">City</label><input id="f_city" placeholder="e.g. San Francisco" autocomplete="address-level2" maxlength="100"></div>
               <div><label for="f_website">Website or domain</label><input id="f_website" placeholder="e.g. example.com" maxlength="300"></div>
               <div class="full"><label for="f_address">Street address</label><input id="f_address" placeholder="Street address" autocomplete="street-address" maxlength="300"></div>
             </div>
-            <div class="form-actions actions"><button class="primary" id="run" onclick="runInvestigation()"><i data-lucide="scan-search" aria-hidden="true"></i>Start investigation<i data-lucide="arrow-right" aria-hidden="true"></i></button><span class="status" id="status" role="status" aria-live="polite"></span></div>
+            <div class="form-actions actions"><button class="primary" id="run" onclick="runInvestigation()"><i data-lucide="scan-search" aria-hidden="true"></i>Start investigation<i data-lucide="arrow-right" aria-hidden="true"></i></button><button type="button" class="ghost" id="cancelInvestigation" onclick="cancelInvestigation()" hidden>Cancel</button><span class="status" id="status" role="status" aria-live="polite"></span></div>
             <p class="privacy-note"><i data-lucide="info" aria-hidden="true"></i>Queries are sent to external data sources and saved in this workspace. Use public information only.</p>
           </section>
         </div>
@@ -126,7 +126,7 @@
   </main>
 </div>
 <script src="/static/vendor/lucide.min.js"></script>
-<script src="/static/app.js?v=entity-search-5"></script>
+<script src="/static/app.js?v=live-search-details-6"></script>
 <script src="/static/motion.js?v=polish-1"></script>
 </body>
 </html>
