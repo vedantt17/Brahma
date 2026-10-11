@@ -98,3 +98,10 @@ have coordinated pale surfaces and borders; navigation uses a cool blue neutral.
 Graph node types use blue/green with distinct labels and icons. Semantic warning,
 error and risk colors are preserved. This replaces the decorative violet, amber
 and rose accents from the previous palette experiment.
+
+## Deeper blue and green — October 11, 2026
+
+Darkened blue to `#164a7b` and forest green to `#185634`, with stronger
+blue (`#c9deef`) and green (`#cee3d3`) surface tints and more defined borders.
+Code surfaces and navigation neutrals are deeper too. Graph nodes follow the
+same darker palette. Risk status colors retain their existing meaning.

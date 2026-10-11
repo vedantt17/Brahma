@@ -11,15 +11,15 @@
   --accent: var(--green);
   --accent-hover: var(--green-ink);
   --accent-soft: var(--green-soft);
-  --blue: #0966b6;
-  --blue-ink: #113264;
-  --blue-soft: #e6f4fe;
-  --green: #217346;
-  --green-ink: #174b32;
-  --green-soft: #e9f5ed;
-  --green-line: #b8dcc6;
+  --blue: #164a7b;
+  --blue-ink: #102f50;
+  --blue-soft: #c9deef;
+  --green: #185634;
+  --green-ink: #103d25;
+  --green-soft: #cee3d3;
+  --green-line: #89b59a;
   --teal-line: var(--green-line);
-  --blue-line: #acd8fc;
+  --blue-line: #85abc9;
   --radius: 8px;
 }
 .app-sidebar { background: var(--bg); border-right-color: var(--line); }
@@ -138,8 +138,8 @@ button, .btn, a, summary, input, textarea, select { transition: color 160ms var(
 :is(button, a, summary):focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
 .graphwrap svg [tabindex]:focus-visible { outline: none; filter: drop-shadow(0 0 3px var(--blue)); }
 /* Color follows content roles across workspaces, not a random row cycle. */
-.app-sidebar { background: #eef4f7; }
-.workspace-bar { background: rgb(238 244 247 / 97%); }
+.app-sidebar { background: #e0eaf0; }
+.workspace-bar { background: rgb(224 234 240 / 97%); }
 .brand-mark { color: var(--green); }
 .account-avatar { color: var(--green-ink); background: var(--green-soft); border-color: var(--green-line); }
 #s2.active { color: var(--blue); background: var(--blue-soft); }
@@ -152,7 +152,7 @@ button, .btn, a, summary, input, textarea, select { transition: color 160ms var(
 .intake.workspace-document { border-top: 3px solid var(--blue); }
 .screening-form .form-heading h2 { color: var(--blue-ink); }
 .form-symbol { color: var(--blue); background: var(--blue-soft); }
-.screening-form .seg { border-color: var(--blue-line); background: #f4faff; }
+.screening-form .seg { border-color: var(--blue-line); background: #e5eff7; }
 .screening-form .seg button.on { color: var(--blue-ink); border-color: var(--blue-line); }
 .intake-side .section-label { padding: 10px 12px; margin: 0 0 12px; background: var(--green-soft); color: var(--green-ink); border-radius: 8px; }
 .intake-side .section-label .cnt { color: var(--green); }
@@ -165,7 +165,7 @@ button, .btn, a, summary, input, textarea, select { transition: color 160ms var(
 .source-item:nth-child(5) { background: var(--blue-soft); }
 .source-item:nth-child(5) > svg { color: var(--blue); background: var(--blue-soft); }
 .source-item:nth-child(6) { background: var(--blue-soft); }
-.strategy-intake { border-top: 3px solid var(--green); background: #f8fcf9; }
+.strategy-intake { border-top: 3px solid var(--green); background: #edf5ef; }
 .strategy-intake .form-heading h2 { color: var(--green-ink); }
 .crewitem .ck { color: var(--green); border-color: var(--green-line); }
 .missstats { gap: 12px; }
@@ -204,8 +204,8 @@ button, .btn, a, summary, input, textarea, select { transition: color 160ms var(
 #evidence-panel-media { border-top: 3px solid var(--blue); }
 #evidence-panel-signals { border-top: 3px solid var(--green); }
 #evidence-panel-records { border-top: 3px solid var(--accent); }
-.rtable thead th { color: var(--blue-ink); background: #f4faff; }
-.rtable tbody tr:hover td { background: #f4faff; }
+.rtable thead th { color: var(--blue-ink); background: #e5eff7; }
+.rtable tbody tr:hover td { background: #e5eff7; }
 .signal-section h2 { color: var(--green-ink); }
 .signal-section + .signal-section h2 { color: var(--blue-ink); }
 .term-track { background: var(--green-soft); }
@@ -214,13 +214,13 @@ button, .btn, a, summary, input, textarea, select { transition: color 160ms var(
 .term-row[aria-pressed="true"] { border-color: var(--green-line); background: var(--green-soft); }
 .term-row[aria-pressed="true"] .term-track > i { background: var(--green); }
 .bias-section > .section-heading h2 { color: var(--blue); }
-.bias-item > summary { background: #f2faf5; }
+.bias-item > summary { background: #e4f0e7; }
 #view3 .canvas { border-color: var(--blue-line); }
 #view3 > .card { border-top: 3px solid var(--green); }
 #view3 > .card h2 { color: var(--green-ink); }
 #view3 > details.card { border-top-color: var(--blue-line); }
 #view3 > details.card > summary { color: var(--blue); }
-.legend { background: #f4faff; }
+.legend { background: #e5eff7; }
 .developer-panel { border-top: 3px solid var(--green); }
 #developer-panel-playground { border-top-color: var(--blue); }
 #developer-panel-contract { border-top-color: var(--accent); }
@@ -233,9 +233,9 @@ button, .btn, a, summary, input, textarea, select { transition: color 160ms var(
 .stepcard:nth-child(1) .stepnum { color: var(--blue-ink); }
 .stepcard:nth-child(2) .stepnum { color: var(--green-ink); }
 .stepcard:nth-child(3) .stepnum { color: var(--blue); }
-#qs1, #apiCurl { background: #f4faff; border-color: var(--blue-line); }
-#qs2, #mcpSnippet { background: #f2faf5; border-color: var(--green-line); }
-#apiOut { background: #f2faf5; border-color: var(--teal-line); }
+#qs1, #apiCurl { background: #e5eff7; border-color: var(--blue-line); }
+#qs2, #mcpSnippet { background: #e4f0e7; border-color: var(--green-line); }
+#apiOut { background: #e4f0e7; border-color: var(--teal-line); }
 .developer-panel #contract th { color: var(--accent-hover); background: var(--accent-soft); }
 @media (max-width: 600px) {
   .report-tabs { gap: 4px; }
