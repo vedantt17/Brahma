@@ -244,14 +244,15 @@ function go(step){
     $("s"+i).classList.toggle("active",i===step);$("s"+i).classList.toggle("done",i<step&&i<4);
     if(i===step)$("s"+i).setAttribute("aria-current","page");else $("s"+i).removeAttribute("aria-current");});
   if(step===3)setGraph(GRAPH);
+  else if(typeof window.cancelAnimationFrame==="function"){window.cancelAnimationFrame(Graph.raf);Graph.raf=null;}
   if(step===4)renderConnectors();
   updateWorkspace();refreshIcons();
-  window.scrollTo({top:0,behavior:"smooth"});
+  window.scrollTo({top:0,behavior:window.matchMedia?.("(prefers-reduced-motion: reduce)").matches?"instant":"smooth"});
 }
 function setMode(mode){
   if(!["screen","strategy"].includes(mode))return;
   MODE=mode;
-  document.querySelectorAll(".modeseg button").forEach(b=>b.classList.toggle("on",b.dataset.mode===mode));
+  document.querySelectorAll(".modeseg button").forEach(b=>{const selected=b.dataset.mode===mode;b.classList.toggle("on",selected);b.setAttribute("aria-pressed",String(selected));});
   $("modeStrategy").classList.toggle("on",mode==="strategy");
   $("modeScreen").classList.toggle("on",mode==="screen");
   if(STEP!==1)go(1);
@@ -498,7 +499,7 @@ function renderSpecialists(seats){
     <div class="report-specialist-body">${s.staffed?`<p class="report-specialist-headline">${esc(s.headline||"No assessment recorded.")}</p>
       <div class="report-scores">${[["risk_score","Risk","risk"],["conviction","Conviction","conviction"]].map(([key,label,kind])=>`<div class="report-score">
         <div><span>${label}</span><strong>${esc(s[key]??"-")}<small>/10</small></strong></div>
-        <span class="report-score-track ${kind}" aria-hidden="true"><i style="width:${pct(s[key],10)*10}%"></i></span></div>`).join("")}</div>
+        <span class="report-score-track ${kind}" aria-hidden="true"><i data-motion-bar style="width:${pct(s[key],10)*10}%"></i></span></div>`).join("")}</div>
       ${(s.risks||[]).length?`<h5>Key risks</h5><ul class="report-risks">${s.risks.map(r=>`<li>${esc(r)}</li>`).join("")}</ul>`:""}`:
       `<p class="report-empty">${esc(s.bench_reason||"Not staffed.")}</p>`}</div></article>`).join("");
 }
@@ -811,12 +812,12 @@ function toggleDetail(i){const el=$("bd"+i);if(el)el.open=!el.open;}
 /* ---- interactive force-directed graph engine (vanilla SVG, no deps) ---- */
 const SVGNS="http://www.w3.org/2000/svg";
 const TYPE_STYLE={
-  query:{c:"#397e79",r:16,l:"Search subject"},selected:{c:"#059669",r:15,l:"Selected identity"},
+  query:{c:"#0d74ce",r:16,l:"Search subject"},selected:{c:"#059669",r:15,l:"Selected identity"},
   match:{c:"#527c78",r:12,l:"Above threshold"},rejected:{c:"#94a3a0",r:9,l:"Rejected candidate"},
-  entity:{c:"#397e79",r:17,l:"Subject entity"},
-  person:{c:"#89704e",r:12,l:"Person"},holding:{c:"#637d79",r:14,l:"Holding / parent"},
-  parent:{c:"#637d79",r:13,l:"Corporate parent"},company:{c:"#488b82",r:13,l:"External firm"},
-  trust:{c:"#778780",r:12,l:"Trust / family office"}};
+  entity:{c:"#0d74ce",r:17,l:"Subject entity"},
+  person:{c:"#6550b9",r:12,l:"Person"},holding:{c:"#6550b9",r:14,l:"Holding / parent"},
+  parent:{c:"#6550b9",r:13,l:"Corporate parent"},company:{c:"#488b82",r:13,l:"External firm"},
+  trust:{c:"#956014",r:12,l:"Trust / family office"}};
 const nstyle=t=>own(TYPE_STYLE,t)||{c:"#94a3a0",r:10,l:t};
 const el=(tag,a)=>{const e=document.createElementNS(SVGNS,tag);for(const k in a)e.setAttribute(k,a[k]);return e;};
 
@@ -943,9 +944,18 @@ const Graph={
       nd.x+=Math.max(-16,Math.min(16,nd.vx));nd.y+=Math.max(-16,Math.min(16,nd.vy));
       nd.vx*=0.82;nd.vy*=0.82;nd.x=Math.max(40,Math.min(this.W-40,nd.x));nd.y=Math.max(28,Math.min(this.H-28,nd.y));});
     this.updatePositions();this.alpha*=0.98;
-    if(schedule){if(this.alpha>0.03||this.drag)this.raf=requestAnimationFrame(()=>this.tick());else this.raf=null;}},
+    if(schedule){if(!document.hidden && !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches && (this.alpha>0.03||this.drag))this.raf=requestAnimationFrame(()=>this.tick());else this.raf=null;}},
 
-  reheat(a){this.alpha=Math.max(this.alpha,a);if(!this.raf)this.raf=requestAnimationFrame(()=>this.tick());},
+  reheat(a){
+    this.alpha=Math.max(this.alpha,a);
+    if(document.hidden)return;
+    if(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches){
+      cancelAnimationFrame(this.raf);this.raf=null;
+      for(let i=0;i<90;i++)this.tick(false);
+      this.alpha=0;return;
+    }
+    if(!this.raf)this.raf=requestAnimationFrame(()=>this.tick());
+  },
 
   updatePositions(){this.nodes.forEach(n=>{const st=this.nodeStyle(n);
     n._c.setAttribute("r",st.r);
@@ -1025,24 +1035,24 @@ const Graph={
       <div class="kv"><div>Type</div><div>${esc(st.l||n.type)}</div>
       ${n.detail?`<div>Detail</div><div class="dim">${esc(n.detail)}</div>`:""}
       ${n.source?`<div>Source</div><div>${esc(n.source)}</div>`:""}
-      ${n.confidence!=null?`<div>Confidence</div><div>${fixed(n.confidence)}<div class="bar"><i style="width:${pct(n.confidence*100)}%"></i></div></div>`:""}</div>`;
+      ${n.confidence!=null?`<div>Confidence</div><div>${fixed(n.confidence)}<div class="bar"><i data-motion-bar style="width:${pct(n.confidence*100)}%"></i></div></div>`:""}</div>`;
     if(n.breakdown&&Object.keys(n.breakdown).length){h+=`<div style="margin-top:12px"><h2>Match features</h2><div class="kv">`+
-      Object.entries(n.breakdown).map(([k,v])=>`<div>${esc(k)}</div><div>${fixed(v)}<div class="bar"><i style="width:${pct(v*100)}%"></i></div></div>`).join("")+`</div></div>`;}
+      Object.entries(n.breakdown).map(([k,v])=>`<div>${esc(k)}</div><div>${fixed(v)}<div class="bar"><i data-motion-bar style="width:${pct(v*100)}%"></i></div></div>`).join("")+`</div></div>`;}
     if(linked.length){h+=`<div style="margin-top:12px"><h2>Connections (${linked.length})</h2><div class="neigh">`+
       linked.map(e=>{const other=e.source===n.id?e.target:e.source,on=this.byId[other];
         return `<a role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" onclick="Graph.selectNode(${jsArg(other)})">${esc(on?on.label:other)} <span class="dim">· ${esc(e.relationship||e.label||"")}</span></a>`;}).join("")+`</div></div>`;}
     h+=`<div style="margin-top:6px">`;
     if(this.hasMore(n.id))h+=`<button type="button" class="btn alt" onclick="Graph.expand(${jsArg(n.id)})"><i data-lucide="expand"></i> Expand connections</button> `;
     h+=`<button type="button" class="btn" id="insightBtn" onclick="Graph.runInsight()"><i data-lucide="scan-text"></i> Generate insight</button></div><div id="insightBox" aria-live="polite"></div>`;
-    $("side").innerHTML=h;refreshIcons();},
+    $("side").innerHTML=h;refreshIcons();window.BrahmaMotion?.enter($("side"));},
 
   renderEdgePanel(i){const e=this.edges[i],s=this.byId[e.source],t=this.byId[e.target];
     $("side").innerHTML=`<h2>Connection</h2>
       <div class="conn"><b>${esc(s.label)}</b><span class="rel">${esc(e.relationship||e.label||"linked")}</span><b>${esc(t.label)}</b></div>
-      <div class="kv">${e.confidence!=null?`<div>Confidence</div><div>${(+e.confidence).toFixed(2)}<div class="bar"><i style="width:${Math.round(e.confidence*100)}%"></i></div></div>`:""}
+      <div class="kv">${e.confidence!=null?`<div>Confidence</div><div>${(+e.confidence).toFixed(2)}<div class="bar"><i data-motion-bar style="width:${Math.round(e.confidence*100)}%"></i></div></div>`:""}
       ${e.description?`<div>Known facts</div><div class="dim">${esc(e.description)}</div>`:""}</div>
       <button type="button" class="btn" id="insightBtn" onclick="Graph.runInsight()"><i data-lucide="scan-text"></i> Generate connection insight</button>
-      <div id="insightBox" aria-live="polite"></div>`;refreshIcons();},
+      <div id="insightBox" aria-live="polite"></div>`;refreshIcons();window.BrahmaMotion?.enter($("side"));},
 
   buildPayload(){const subj=DATA.supplier&&DATA.supplier.name,rl=DATA.risk&&DATA.risk.level;
     if(this.selEdge!=null){const e=this.edges[this.selEdge],s=this.byId[e.source],t=this.byId[e.target];
@@ -1068,8 +1078,9 @@ const Graph={
 function setGraph(kind){
   if(!DATA||!["resolution","network"].includes(kind))return;
   GRAPH=kind;
-  ["resolution","network"].forEach((k,i)=>$("gt"+i).classList.toggle("on",k===kind));
+  ["resolution","network"].forEach((k,i)=>{const b=$("gt"+i);b.classList.toggle("on",k===kind);b.setAttribute("aria-pressed",String(k===kind));});
   Graph.load(kind);renderGraphDetail();
+  window.BrahmaMotion?.enter($("graphDetail"));
   $("graphHint").textContent=kind==="network"
     ? `${Graph.nodes.length} entities / ${Graph.edges.length} connections`
     : `${num(DATA.entity_resolution.candidates_considered)} candidates / ${DATA.entity_resolution.selected?1:0} selected identity`;}
@@ -1081,7 +1092,7 @@ function renderGraphDetail(){
     $("graphDetail").innerHTML=rows.length?`<table><tr><th>Candidate</th><th>Source</th><th>Confidence</th><th>Feature breakdown</th></tr>
       ${rows.map(c=>`<tr><td>${c===er.selected?"<b>":""}${esc(c.name)}${c===er.selected?"</b> <span class='badge b-low'>selected</span>":""}</td>
         <td class="dim">${esc(c.source)}</td>
-        <td>${fixed(c.confidence)}<div class="bar"><i style="width:${pct(c.confidence*100)}%"></i></div></td>
+        <td>${fixed(c.confidence)}<div class="bar"><i data-motion-bar style="width:${pct(c.confidence*100)}%"></i></div></td>
         <td class="dim">${Object.entries(c.confidence_breakdown||{}).map(([k,v])=>`${esc(k)} ${fixed(v)}`).join(" · ")}</td></tr>`).join("")}</table>
       <div class="dim" style="margin-top:9px;font-size:12px">Embeddings: ${esc(er.embedding_backend)} · ${esc(er.candidates_considered)} candidates · threshold ${esc(er.match_threshold)}</div>`:`<div class="empty">No candidates.</div>`;
   }else{$("detailTitle").textContent="Related parties";
@@ -1091,6 +1102,28 @@ function renderGraphDetail(){
   }
 }
 /* ---- API & MCP connectors tab ---- */
+// Developer navigation shares the report's tab and keyboard behavior.
+function setDeveloperTab(key){
+  if(!["setup","playground","contract"].includes(key))return;
+  document.querySelectorAll("[data-developer-tab]").forEach(button=>{
+    const selected=button.dataset.developerTab===key;
+    button.setAttribute("aria-selected",String(selected));button.tabIndex=selected?0:-1;
+  });
+  document.querySelectorAll("[data-developer-panel]").forEach(panel=>{
+    panel.hidden=panel.dataset.developerPanel!==key;
+  });
+}
+function developerTabKey(event){
+  const tabs=Array.from(event.currentTarget.querySelectorAll('[role="tab"]'));
+  const index=tabs.indexOf(event.target);if(index<0)return;
+  let next;
+  if(event.key==="ArrowRight")next=(index+1)%tabs.length;
+  else if(event.key==="ArrowLeft")next=(index+tabs.length-1)%tabs.length;
+  else if(event.key==="Home")next=0;
+  else if(event.key==="End")next=tabs.length-1;
+  else return;
+  event.preventDefault();setDeveloperTab(tabs[next].dataset.developerTab);tabs[next].focus();
+}
 const CONTRACT=[
   ["supplier","Resolved identity, verification status and confidence"],
   ["entity_resolution","Selected candidate, scored alternatives, feature breakdown"],
@@ -1154,6 +1187,7 @@ function platformTab(p){
   const o=location.origin,spec=own(PLATFORMS,p);if(!spec)return;
   $("pdesc").textContent=spec.desc;
   $("qs2").innerHTML=`<button class="cp" onclick="copyCode('qs2')">copy</button>`+spec.code(o);
+  window.BrahmaMotion?.enter($("qs2"));
 }
 async function copyCode(id){
   const code=$(id);if(!code)return;
@@ -1191,5 +1225,11 @@ async function tryApi(){
   finally{if(isCurrent(ticket))btn.disabled=false;finishRequest(ticket);}
 }
 
+const graphMotionPreference=window.matchMedia?.("(prefers-reduced-motion: reduce)");
+function suspendGraphMotion(){
+  if(document.hidden||graphMotionPreference?.matches){cancelAnimationFrame(Graph.raf);Graph.raf=null;}
+}
+graphMotionPreference?.addEventListener?.("change",suspendGraphMotion);
+document.addEventListener?.("visibilitychange",suspendGraphMotion);
 window.addEventListener("pagehide",()=>{for(const key of REQUESTS.keys())cancelRequest(key);MISSION_TIMERS.forEach(clearTimeout);cancelAnimationFrame(Graph.raf);Graph.raf=null;});
 setType("organization");setMode("screen");checkHealth();loadEntities();Graph.init();renderConnectors();initStrategy();refreshIcons();

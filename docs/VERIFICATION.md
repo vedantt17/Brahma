@@ -1,5 +1,38 @@
 # Brahma build verification
 
+## Shared workspace polish — October 11, 2026
+
+- Current cloud instance: Python 3.12.14, Node 24.19.0, local SQLite and
+  hashed embeddings. Dependencies installed in `.venv`; `pip check` passed.
+- Full suite after the workspace changes: **195 passed, 230 subtests passed**
+  in 42.78 seconds (`.venv/bin/python -m pytest tests -q`). The added test
+  covers developer tab visibility, selected state, roving focus, keyboard
+  wrapping, Home/End and invalid input handling.
+- Both `node --check static/app.js` and `node --check static/motion.js` passed.
+  `git diff --check` passed.
+- Headless system Chromium checked Investigate, Evidence, Network, Analysis
+  report and Developer screens at 1440, 1024, 390 and 320 pixels. No page
+  errors or document horizontal overflow occurred. Desktop intake widths were
+  checked after correcting a conflicting column rule; smaller layouts stack.
+- Functional browser checks covered sample loading, graph keyboard selection,
+  connection selection and deterministic sample insight generation, all four
+  report tabs, developer tab keyboard navigation and MCP client switching.
+  These checks validate the displayed client configuration, not an external
+  MCP client session.
+- Verified an actual panel animation call and cancellation after reduced-motion
+  preference changes. Reduced motion stops graph animation and navigation uses
+  immediate scrolling. No animation remains after the preference change settles.
+- Screenshots are in ignored `artifacts/polish-*.png`, including desktop/mobile
+  investigation, developer, graph, report and evidence states.
+- Root, bundled scripts, OpenAPI, health, schema-valid Northwind sample response,
+  and strategy sample decision requests passed against the running service.
+- OFAC warm-up returned HTTP 403 from both configured download destinations;
+  health correctly reports zero indexed names. Live investigations, paid APIs,
+  production PostgreSQL and external MCP sessions were not validated in this run.
+- Reusable installation and startup instructions were saved to the environment
+  draft. Draft persistence does not publish an environment or establish restoration
+  in a fresh task.
+
 Date: October 10, 2026. Branch: `codex/brahma-redesign`.
 
 ## Automated checks

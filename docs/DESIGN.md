@@ -38,6 +38,35 @@ These references informed the design. No remote skill installer or project hook 
 The implementation keeps Brahma's existing vanilla frontend and local asset delivery.
 The Geist license is retained in `static/vendor/GEIST-LICENSE.txt`.
 
+## Shared workspace refinement — October 11, 2026
+
+Investigate, Evidence, the Analysis report, Network and Developers now share
+document surfaces, heading hierarchy, section spacing and underlined navigation.
+`static/workspace.css` supplies the shared layer after the existing structural
+styles. Intake keeps the form as the main desktop column and stacks sample cases
+below it on smaller screens. Developers separates setup, playground and response
+contract into keyboard-accessible tabs; every existing integration remains available.
+
+Color research used the current [Radix Colors source](https://github.com/radix-ui/colors/blob/main/src/light.ts)
+and [project documentation](https://github.com/radix-ui/colors#readme), retrieved
+from their official GitHub repository. Slate supplies neutral working surfaces;
+teal marks primary actions, blue identifies relationships, and violet identifies
+integration and analysis surfaces. Softer scale steps are used for backgrounds,
+stronger steps for text. Risk colors retain their semantic meaning and labels.
+No color package or remote browser asset was added.
+
+Selected text/background pairs were checked numerically: white on the adjusted
+teal action color is 4.91:1; violet tabs on slate are 5.87:1; blue tabs are 4.53:1;
+secondary copy is 5.65:1. These checks concern these pairs, not a complete
+accessibility certification.
+
+Motion uses the existing progressive controller: workspace/tab changes enter
+briefly, graph selection and client configuration updates acknowledge new content,
+and report and identity confidence bars use scale transitions. Hover and focus
+colors use short transitions. Reduced motion cancels panel effects and graph
+movement and disables smooth navigation scrolling. Hidden documents and navigation
+away from Network stop graph animation. Initial content remains immediately readable.
+
 ## Accuracy constraints
 
 - Sample investigations remain explicitly labeled and are not live screening.
