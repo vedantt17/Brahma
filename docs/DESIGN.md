@@ -75,3 +75,17 @@ away from Network stop graph animation. Initial content remains immediately read
 - Category counts can overlap; they are not exclusive shares of a whole.
 - Media language flags are not factual verification.
 - Every existing external-link safety and escaping boundary must remain intact.
+
+## Expanded palette — October 11, 2026
+
+The shared palette now appears throughout content, rather than mainly in navigation
+icons. Blue identifies intake and relationship context; violet identifies analysis
+and curated samples; teal identifies actions and records; amber identifies source
+and language context; rose identifies adversarial challenges. Source adapter chips,
+report/evidence tab surfaces, integration steps, code blocks and section accents
+reuse these roles. Status values retain their labels and risk colors; decorative
+section colors do not imply successful screening or verified evidence.
+
+Text accents are adjusted for tinted surfaces: blue `#0966b6`, violet `#6550b9`,
+teal `#077568`, amber `#8b5b12`, and rose `#a93658`. Their respective soft-surface
+contrast ratios are 5.22:1, 5.51:1, 5.03:1, 5.32:1, and 5.56:1.

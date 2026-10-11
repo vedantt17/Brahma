@@ -8,15 +8,24 @@
   --ink: #1c2024;
   --muted: #525861;
   --dim: #60646c;
-  --accent: #087f70;
+  --accent: #077568;
   --accent-hover: #0d3d38;
   --accent-soft: #e0f8f3;
-  --blue: #0d74ce;
+  --blue: #0966b6;
   --blue-ink: #113264;
   --blue-soft: #e6f4fe;
   --violet: #6550b9;
   --violet-soft: #f4f0fe;
   --violet-ink: #2f265f;
+  --amber: #8b5b12;
+  --amber-soft: #fff4d5;
+  --amber-line: #ead7a3;
+  --rose: #a93658;
+  --rose-soft: #ffedf2;
+  --rose-line: #f0c6d3;
+  --teal-line: #a1ded2;
+  --blue-line: #acd8fc;
+  --violet-line: #d4cafe;
   --radius: 8px;
 }
 .app-sidebar { background: var(--bg); border-right-color: var(--line); }
@@ -134,6 +143,112 @@
 button, .btn, a, summary, input, textarea, select { transition: color 160ms var(--ease-out), background-color 160ms var(--ease-out), border-color 160ms var(--ease-out), box-shadow 160ms var(--ease-out), transform 140ms var(--ease-out); }
 :is(button, a, summary):focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
 .graphwrap svg [tabindex]:focus-visible { outline: none; filter: drop-shadow(0 0 3px var(--blue)); }
+/* Color follows content roles across workspaces, not a random row cycle. */
+.app-sidebar { background: #f4f3fa; }
+.workspace-bar { background: rgb(244 243 250 / 97%); }
+.brand-mark { color: var(--violet); }
+.account-avatar { color: var(--violet-ink); background: var(--violet-soft); border-color: var(--violet-line); }
+#s2.active { color: var(--amber); background: var(--amber-soft); }
+#s2 .nav-icon { color: var(--amber); }
+#view1 .workspace-mark { color: var(--blue); background: var(--blue-soft); }
+#view1 .workspace-identity .eyebrow { color: var(--blue); }
+#view2 { --workspace-color: var(--amber); --workspace-soft: var(--amber-soft); }
+.modeseg.workspace-tabs > button[data-mode="screen"] { --workspace-color: var(--blue); }
+.modeseg.workspace-tabs > button[data-mode="strategy"] { --workspace-color: var(--violet); }
+.intake.workspace-document { border-top: 3px solid var(--blue); }
+.screening-form .form-heading h2 { color: var(--blue-ink); }
+.form-symbol { color: var(--blue); background: var(--blue-soft); }
+.screening-form .seg { border-color: var(--blue-line); background: #f4faff; }
+.screening-form .seg button.on { color: var(--blue-ink); border-color: var(--blue-line); }
+.intake-side .section-label { padding: 10px 12px; margin: 0 0 12px; background: var(--violet-soft); color: var(--violet-ink); border-radius: 8px; }
+.intake-side .section-label .cnt { color: var(--violet); }
+.intake-side .subseg button.on { color: var(--violet); background: var(--violet-soft); }
+.intake-side .erail button:hover { color: var(--violet-ink); background: var(--violet-soft); }
+.sample-footnote { color: var(--violet); }
+.source-item { padding: 8px 10px; border-radius: 8px; background: var(--blue-soft); }
+.source-item:nth-child(2) { background: var(--accent-soft); }
+.source-item:nth-child(4) { background: var(--violet-soft); }
+.source-item:nth-child(5) { background: var(--rose-soft); }
+.source-item:nth-child(5) > svg { color: var(--rose); background: var(--rose-soft); }
+.source-item:nth-child(6) { background: var(--amber-soft); }
+.strategy-intake { border-top: 3px solid var(--violet); background: #fdfcfe; }
+.strategy-intake .form-heading h2 { color: var(--violet-ink); }
+.crewitem .ck { color: var(--violet); border-color: var(--violet-line); }
+.missstats { gap: 12px; }
+.missstats > span { padding: 12px 16px; border-radius: 8px; background: var(--blue-soft); }
+.missstats > span:nth-child(2) { background: var(--violet-soft); }
+/* Status text in these metrics still carries the actual decision/risk color. */
+.missstats > span:nth-child(n+3) { background: var(--soft); }
+.analysis-report { border-top: 3px solid var(--violet); }
+.report-tabs > button[data-report-tab="overview"] { --tab-color: var(--violet); --tab-soft: var(--violet-soft); }
+.report-tabs > button[data-report-tab="team"] { --tab-color: var(--blue); --tab-soft: var(--blue-soft); }
+.report-tabs > button[data-report-tab="evidence"] { --tab-color: var(--accent); --tab-soft: var(--accent-soft); }
+.report-tabs > button[data-report-tab="challenges"] { --tab-color: var(--rose); --tab-soft: var(--rose-soft); }
+.report-tabs > button { padding-inline: 10px; border-radius: 6px 6px 0 0; }
+.report-tabs > button:hover { background: var(--tab-soft); }
+.report-tabs > button[aria-selected="true"] { color: var(--tab-color); background: var(--tab-soft); }
+.report-tabs > button[aria-selected="true"]::after { background: var(--tab-color); }
+.report-conclusion { padding: 18px 20px; background: var(--violet-soft); border-radius: 0 8px 8px 0; }
+.report-specialist-identity h4, .report-vote h4 { color: var(--blue-ink); }
+.report-panel[data-report-panel="team"] h3 { color: var(--blue-ink); }
+.report-panel[data-report-panel="evidence"] h3 { color: var(--accent-hover); }
+.report-panel[data-report-panel="challenges"] h3 { color: var(--rose); }
+.report-objection { background: var(--rose-soft); border-left-color: var(--rose); }
+.report-challenge-index { display: grid; align-content: start; padding-top: 4px; color: var(--rose); }
+.case-mark { color: var(--amber); background: var(--amber-soft); border-color: var(--amber-line); }
+.evidence-tabs > button[data-evidence-tab="media"] { --tab-color: var(--blue); --tab-soft: var(--blue-soft); }
+.evidence-tabs > button[data-evidence-tab="signals"] { --tab-color: var(--violet); --tab-soft: var(--violet-soft); }
+.evidence-tabs > button[data-evidence-tab="records"] { --tab-color: var(--accent); --tab-soft: var(--accent-soft); }
+.evidence-tabs > button { padding-inline: 10px; border-radius: 6px 6px 0 0; }
+.evidence-tabs > button:hover { background: var(--tab-soft); }
+.evidence-tabs > button[aria-selected="true"] { color: var(--tab-color); background: var(--tab-soft); }
+.evidence-tabs > button[aria-selected="true"]::after { background: var(--tab-color); }
+.risk-facts dt { width: fit-content; padding: 3px 7px; border-radius: 4px; color: var(--blue-ink); background: var(--blue-soft); }
+.risk-facts > div:nth-child(2) dt { color: var(--violet-ink); background: var(--violet-soft); }
+.risk-facts > div:nth-child(3) dt { color: var(--amber); background: var(--amber-soft); }
+.risk-facts > div:nth-child(4) dt { color: var(--accent-hover); background: var(--accent-soft); }
+#evidence-panel-media { border-top: 3px solid var(--blue); }
+#evidence-panel-signals { border-top: 3px solid var(--violet); }
+#evidence-panel-records { border-top: 3px solid var(--accent); }
+.rtable thead th { color: var(--blue-ink); background: #f4faff; }
+.rtable tbody tr:hover td { background: #f4faff; }
+.signal-section h2 { color: var(--violet-ink); }
+.signal-section + .signal-section h2 { color: var(--blue-ink); }
+.term-track { background: var(--violet-soft); }
+.term-track > i { background: var(--violet); }
+.term-row:hover { background: var(--violet-soft); }
+.term-row[aria-pressed="true"] { border-color: var(--violet-line); background: var(--violet-soft); }
+.term-row[aria-pressed="true"] .term-track > i { background: var(--violet); }
+.bias-section > .section-heading h2 { color: var(--amber); }
+.bias-item > summary { background: #fffaf0; }
+#view3 .canvas { border-color: var(--blue-line); }
+#view3 > .card { border-top: 3px solid var(--violet); }
+#view3 > .card h2 { color: var(--violet-ink); }
+#view3 > details.card { border-top-color: var(--amber-line); }
+#view3 > details.card > summary { color: var(--amber); }
+.legend { background: #f4faff; }
+.developer-panel { border-top: 3px solid var(--violet); }
+#developer-panel-playground { border-top-color: var(--blue); }
+#developer-panel-contract { border-top-color: var(--accent); }
+.developer-tabs > button[data-developer-tab="setup"] { --workspace-color: var(--violet); }
+.developer-tabs > button[data-developer-tab="playground"] { --workspace-color: var(--blue); }
+.developer-tabs > button[data-developer-tab="contract"] { --workspace-color: var(--accent); }
+.stepcard:nth-child(1) .stepnum b { color: var(--blue-ink); background: var(--blue-soft); }
+.stepcard:nth-child(2) .stepnum b { color: var(--violet-ink); background: var(--violet-soft); }
+.stepcard:nth-child(3) .stepnum b { color: var(--amber); background: var(--amber-soft); }
+.stepcard:nth-child(1) .stepnum { color: var(--blue-ink); }
+.stepcard:nth-child(2) .stepnum { color: var(--violet-ink); }
+.stepcard:nth-child(3) .stepnum { color: var(--amber); }
+#qs1, #apiCurl { background: #f4faff; border-color: var(--blue-line); }
+#qs2, #mcpSnippet { background: #faf8ff; border-color: var(--violet-line); }
+#apiOut { background: #f3fbf9; border-color: var(--teal-line); }
+.developer-panel #contract th { color: var(--accent-hover); background: var(--accent-soft); }
+@media (max-width: 600px) {
+  .report-tabs { gap: 4px; }
+  .report-tabs > button { padding-inline: 3px; }
+  .evidence-tabs > button { padding-inline: 4px; }
+}
+
 @media (max-width: 1270px) {
   .intake-grid { grid-template-columns: minmax(0, 1fr) 230px; gap: 24px; }
   .graphwrap { grid-template-columns: minmax(0, 1fr); }

@@ -2,6 +2,12 @@
 
 ## Shared workspace polish — October 11, 2026
 
+Expanded palette follow-up: the focused frontend suite passed **53 tests and
+230 subtests**. Chromium checks were repeated across 1440, 1024, 390 and 320px
+for colored investigation surfaces, evidence, reports, network and developer
+panels. The five accent text/soft-surface pairs measure at least 5:1 contrast.
+No backend behavior changed in this palette pass.
+
 - Current cloud instance: Python 3.12.14, Node 24.19.0, local SQLite and
   hashed embeddings. Dependencies installed in `.venv`; `pip check` passed.
 - Full suite after the workspace changes: **195 passed, 230 subtests passed**
