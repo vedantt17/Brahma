@@ -89,3 +89,12 @@ section colors do not imply successful screening or verified evidence.
 Text accents are adjusted for tinted surfaces: blue `#0966b6`, violet `#6550b9`,
 teal `#077568`, amber `#8b5b12`, and rose `#a93658`. Their respective soft-surface
 contrast ratios are 5.22:1, 5.51:1, 5.03:1, 5.32:1, and 5.56:1.
+
+## Blue and green variation — October 11, 2026
+
+The current palette uses blue for intake, relationships and technical context,
+and forest green for primary actions, samples, analysis and records. Both colors
+have coordinated pale surfaces and borders; navigation uses a cool blue neutral.
+Graph node types use blue/green with distinct labels and icons. Semantic warning,
+error and risk colors are preserved. This replaces the decorative violet, amber
+and rose accents from the previous palette experiment.

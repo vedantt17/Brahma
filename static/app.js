@@ -815,9 +815,9 @@ const TYPE_STYLE={
   query:{c:"#0d74ce",r:16,l:"Search subject"},selected:{c:"#059669",r:15,l:"Selected identity"},
   match:{c:"#527c78",r:12,l:"Above threshold"},rejected:{c:"#94a3a0",r:9,l:"Rejected candidate"},
   entity:{c:"#0d74ce",r:17,l:"Subject entity"},
-  person:{c:"#6550b9",r:12,l:"Person"},holding:{c:"#6550b9",r:14,l:"Holding / parent"},
-  parent:{c:"#6550b9",r:13,l:"Corporate parent"},company:{c:"#488b82",r:13,l:"External firm"},
-  trust:{c:"#956014",r:12,l:"Trust / family office"}};
+  person:{c:"#217346",r:12,l:"Person"},holding:{c:"#217346",r:14,l:"Holding / parent"},
+  parent:{c:"#217346",r:13,l:"Corporate parent"},company:{c:"#488b82",r:13,l:"External firm"},
+  trust:{c:"#0966b6",r:12,l:"Trust / family office"}};
 const nstyle=t=>own(TYPE_STYLE,t)||{c:"#94a3a0",r:10,l:t};
 const el=(tag,a)=>{const e=document.createElementNS(SVGNS,tag);for(const k in a)e.setAttribute(k,a[k]);return e;};
 
