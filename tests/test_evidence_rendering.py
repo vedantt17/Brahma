@@ -286,6 +286,32 @@ toggleTerm('other');return {before,after:node('riskbox').innerHTML,
         self.assertNotIn("Unavailable / not screened", result["risk"])
         self.assertIn("Google News RSS (fallback)", result["count"])
 
+    def test_ambiguous_company_requires_explicit_candidate_selection(self):
+        data = fixture()
+        data["entity_resolution"]["selection"] = {"status": "ambiguous", "reason": "Several companies match this name.",
+            "candidates": [{"name": '<img src=x> OpenAI LLC', "lei": "984500B6DEB8CEBC4Z70", "country": "US"}]}
+        result = self.run_js("renderDashboard();return {html:node('identitySelection').innerHTML,hidden:node('identitySelection').hidden,meta:node('caseMeta').innerHTML,risk:node('riskbox').innerHTML};", data)
+        self.assertFalse(result["hidden"])
+        self.assertIn("Choose the correct company", result["html"])
+        self.assertIn("selectIdentityCandidate(0)", result["html"])
+        self.assertNotIn("<img", result["html"])
+        self.assertIn("Registry identity: ambiguous", result["meta"])
+        self.assertNotIn("verified &middot;", result["risk"])
+
+    def test_candidate_choice_preserves_details_and_submits_selected_legal_name(self):
+        data = fixture()
+        data["query"] = {"name": "OpenAI", "entity_type": "organization", "country": "GB", "city": "London",
+            "website": "https://openai.com", "address": "User address", "aliases": ["User alias"]}
+        data["entity_resolution"]["selection"] = {"status": "ambiguous", "candidates": [
+            {"name": "OPENAI LLC", "lei": "984500B6DEB8CEBC4Z70", "country": "US"}]}
+        result = self.run_js("setType=type=>{TYPE=type};runInvestigation=()=>({name:node('f_name').value,lei:node('f_reg').value,country:node('f_country').value,city:node('f_city').value,address:node('f_address').value,website:node('f_website').value,aliases:node('f_aliases').value});return selectIdentityCandidate(0);", data)
+        self.assertEqual(result["name"], "OPENAI LLC")
+        self.assertEqual(result["lei"], "984500B6DEB8CEBC4Z70")
+        self.assertEqual(result["country"], "US")
+        self.assertEqual(result["website"], "https://openai.com")
+        self.assertEqual(result["address"], "User address")
+        self.assertEqual(result["aliases"], "OpenAI, User alias")
+
     def test_sample_and_escaped_entity_metadata_are_preserved(self):
         data = fixture()
         hostile = '<img src=x onerror="alert(1)">'

@@ -24,7 +24,8 @@ from app.db import session_factory
 from app.models import Company, Document, Investigation, Person, Relationship, RiskSignal
 from app.resolution import EntityRecord, resolve, verdict
 from app.resolution.embeddings import active_backend
-from app.resolution.normalize import normalize_domain, normalize_name
+from app.resolution.normalize import normalize_country, normalize_domain, normalize_name
+from app.resolution.selection import CompanySelection, company_name_key, select_company
 from app.risk import evaluate, recommendation
 from app.sources import courtlistener, gdelt, gleif, news, ofac, optional_sources, sec
 
@@ -58,11 +59,13 @@ async def investigate(
 
     # ---- 1. Live source fan-out ------------------------------------------
     tasks = [
-        _safe("sec", sec.search(name, country), []),
+        _safe("sec", sec.search(name, country, registration_number=registration_number)
+              if registration_number and registration_number.upper().startswith("CIK:")
+              else sec.search(name, country), []),
         _safe("gleif", gleif.search(name, country, registration_number=registration_number)
               if registration_number and entity_type == "organization"
               else gleif.search(name, country), []),
-        _safe("gdelt", news.search(name), []),
+        _safe("gdelt", news.search(_media_search_name(name, aliases, entity_type)), []),
         _safe("courtlistener", courtlistener.search(name),
               {"available": False, "cases": [], "note": "not run"}),
         _safe("ofac", ofac.screen(name, country, date_of_birth),
@@ -103,7 +106,9 @@ async def investigate(
         consulted[source_name] = ok
 
     sec_records: list[EntityRecord] = results.get("sec") or []
-    gleif_records: list[EntityRecord] = results.get("gleif") or []
+    gleif_records: list[EntityRecord] = results.get("gleif")
+    if gleif_records is None:
+        gleif_records = []
     media: list[dict] = results.get("gdelt")
     if media is None:
         media = []
@@ -135,28 +140,41 @@ async def investigate(
         query_website=website,
         query_address=full_address,
     )
-    best = _select_identity(resolutions, registration_number, name)
+    if entity_type == "organization":
+        selection = select_company(resolutions, query_name=name, query_aliases=aliases,
+                                   country=country, website=website,
+                                   registration_number=registration_number)
+        retrieval = getattr(gleif_records, "search_metadata", {}) or {}
+        domain_confirmed = bool(selection.best and website and selection.best.record.website and
+                                normalize_domain(website) == normalize_domain(selection.best.record.website))
+        if selection.best and retrieval.get("truncated") and not registration_number and not domain_confirmed:
+            selection = CompanySelection(None, "ambiguous",
+                "The registry candidate search was limited; supply a registration identifier or choose a legal entity.",
+                selection.candidates)
+        best = selection.best
+    else:
+        best = _select_identity(resolutions, registration_number, name)
+        selection = CompanySelection(best, "selected" if best else "unresolved",
+                                     "Registry identity match." if best else "Individual identity was not established.", resolutions)
     if best:
         # Downstream ownership and transactions must use the same selected identity.
         resolutions = [best] + [r for r in resolutions if r is not best]
     identity_confidence = best.confidence if best else 0.0
     identity_verdict = verdict(identity_confidence)
-    identifier_conflict = bool(best and registration_number and
-                               re.fullmatch(r"[A-Z0-9]{18}[0-9]{2}", registration_number.strip().upper())
-                               and _identity_name_key(name) not in {
-                                   _identity_name_key(best.record.name),
-                                   *(_identity_name_key(alias) for alias in best.record.aliases),
-                               })
-    if identifier_conflict:
-        # The identifier selects a record, but cannot validate a contradictory name.
-        identity_verdict = "unverified"
+    if best is None:
+        identity_verdict = "ambiguous" if selection.status == "ambiguous" else "unverified"
+    if best:
+        try:
+            adapter = gleif if best.record.source == "GLEIF" else sec if best.record.source == "SEC" else None
+            if adapter:
+                await asyncio.wait_for(adapter.enrich(best.record), timeout=8)
+        except Exception as exc:
+            log.warning("Selected entity enrichment unavailable: %s", type(exc).__name__)
 
     supplier = _build_supplier(
         name, country, website, best, resolutions, identity_confidence,
         identity_verdict, entity_type,
     )
-    if identifier_conflict:
-        supplier["identity_note"] = "Supplied LEI identifies a registry record whose name differs from the submitted name; review required."
     if registration_number and not supplier["registration_number"]:
         supplier["registration_number"] = registration_number
     if aliases:
@@ -194,6 +212,8 @@ async def investigate(
         ownership=ownership,
         sources_consulted=consulted,
     )
+    risk["identity_assessment"] = {"confirmed": bool(best and supplier["verified"]),
+                                   "status": selection.status, "reason": selection.reason}
 
     investigation: dict[str, Any] = {
         "query": {
@@ -209,6 +229,13 @@ async def investigate(
         },
         "supplier": supplier,
         "entity_resolution": {
+            "selection": {
+                "status": {"unresolved": "not_found", "conflict": "identifier_conflict"}.get(selection.status, selection.status),
+                "reason": selection.reason,
+                "candidates": [_selection_candidate(r) for r in selection.candidates[:30]],
+                "candidate_count": len(selection.candidates),
+                "retrieval": getattr(gleif_records, "search_metadata", {}) or {},
+            },
             "embedding_backend": active_backend(),
             "candidates_considered": len(candidates),
             "match_threshold": 0.72,
@@ -257,7 +284,7 @@ async def investigate(
     # ---- 7. Claude reasoning layer ---------------------------------------
     report = await generate_report(investigation)
     report.setdefault("recommendation", investigation["_recommendation"])
-    if not risk["coverage_assessment"]["complete"]:
+    if not risk["coverage_assessment"]["complete"] or not risk["identity_assessment"]["confirmed"]:
         report["recommendation"] = investigation["_recommendation"]
     report["rule_based_recommendation"] = investigation.pop("_recommendation")
     investigation["agent_summary"] = report
@@ -297,17 +324,36 @@ def _select_identity(resolutions: list, registration_number: str | None = None,
 
 def _identity_name_key(name: str) -> str:
     # Strip only trailing incorporation forms, preserving distinctive business words.
-    return re.sub(r"[^\w]+", " ", gdelt.search_name(name).casefold()).strip()
+    return company_name_key(name)
+
+
+def _selection_candidate(result) -> dict[str, Any]:
+    record = result.record
+    return {"name": record.name, "source": record.source, "country": record.country,
+            "website": record.website, "lei": record.raw.get("lei"),
+            "cik": record.raw.get("cik"), "registration_number": record.raw.get("registered_as"),
+            "confidence": result.confidence, "url": record.url}
+
+
+def _media_search_name(name: str, aliases: list[str], entity_type: str) -> str:
+    # Explicit trading names preserve the brand when a user chooses a legal
+    # operating entity. This is search context, not identity corroboration.
+    if entity_type == "organization":
+        return next((alias.strip() for alias in aliases if alias.strip() and
+                     not re.fullmatch(r"[A-Z0-9]{18}[0-9]{2}", alias.strip(), re.I)), name)
+    return name
 
 
 def _same_identity_records(best, resolutions: list) -> list:
     if best is None:
         return []
     key = _identity_name_key(best.record.name)
+    country = normalize_country(best.record.country)
     lei = best.record.raw.get("lei")
     cik = best.record.raw.get("cik")
     return [r for r in resolutions if r is best or (
         r.matched and _identity_name_key(r.record.name) == key
+        and not (country and normalize_country(r.record.country) and country != normalize_country(r.record.country))
         and not (lei and r.record.raw.get("lei") and lei != r.record.raw["lei"])
         and not (cik and r.record.raw.get("cik") and cik != r.record.raw["cik"]))]
 
@@ -325,17 +371,17 @@ def _build_supplier(
     resolutions = _same_identity_records(best, resolutions)
     lei = next(
         (r.record.raw.get("lei") for r in resolutions
-         if r.record.source == "GLEIF" and r.confidence >= 0.6),
+         if r.record.source == "GLEIF"),
         None,
     )
     cik = next(
         (r.record.raw.get("cik") for r in resolutions
-         if r.record.source == "SEC" and r.confidence >= 0.6),
+         if r.record.source == "SEC"),
         None,
     )
     registered_as = next(
         (r.record.raw.get("registered_as") for r in resolutions
-         if r.record.source == "GLEIF" and r.confidence >= 0.6),
+         if r.record.source == "GLEIF"),
         None,
     )
 

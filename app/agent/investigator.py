@@ -126,6 +126,11 @@ def _fallback_report(investigation: dict) -> dict:
         f"{supplier['identity_confidence']:.2f} ({supplier['status']})."
         + _cite(evidence, supplier.get("primary_source", "SEC"))
     )
+    selection = investigation.get("entity_resolution", {}).get("selection") or {}
+    if selection and selection.get("status") != "selected":
+        identity = (f"Identity for '{supplier['name']}' is not confirmed. "
+                    + selection.get("reason", "Review the registry candidates.")
+                    + " News and docket results are name-search matches pending identity confirmation.")
 
     if ownership:
         owners = "; ".join(

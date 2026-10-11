@@ -45,6 +45,19 @@ Put an LEI in **Registration number**; recognizable LEIs accidentally entered as
 aliases are moved there before submission. GLEIF looks up that identifier directly.
 The report shows the registry's legal name, which may differ from a trading name
 (for example, `ANTHROPIC, PBC` for Anthropic).
+Company identity selection is separate from fuzzy ranking. When several legal
+entities share a name or brand, the report keeps the submitted name unresolved
+and shows registry candidates instead of selecting a namesake. Choose a legal
+entity or supply a supported identifier (LEI, `CIK:<number>`, or a registration
+number present in the returned registry data). Candidate choice uses its registry
+country, preserves other supplied details, and keeps the original brand as a
+declared trading name for news searches. Contradictory details still require review.
+Country and official source website fields can help distinguish candidates;
+missing fields do not count as corroboration. GLEIF retrieves bounded legal-name
+and alias candidates and reports truncation. Ownership/insider enrichment runs
+only for the selected entity. An unresolved identity cannot authorize onboarding,
+even when the screening sources responded. Companies absent from the supported
+registries remain unresolved rather than receiving an invented identity.
 
 Live results require outbound access to the source adapters. In a restricted
 cloud environment, allow `api.gleif.org`, `api.gdeltproject.org`, `www.sec.gov`,

@@ -566,8 +566,51 @@ function evidenceScore(value,max=1){
   if(value==null||typeof value==="boolean"||String(value).trim()===""||!Number.isFinite(Number(value)))return null;
   return Math.max(0,Math.min(max,Number(value)));
 }
+function renderIdentitySelection(){
+  const selection=DATA.entity_resolution?.selection;
+  const panel=$("identitySelection");
+  panel.hidden=!selection||selection.status==="selected"||isSample(DATA,DATA_ORIGIN);
+  if(panel.hidden){panel.innerHTML="";return;}
+  const headings={ambiguous:"Choose the correct company",not_found:"Company identity not resolved",identifier_conflict:"Company details conflict"};
+  const candidates=selection.candidates||[];
+  panel.innerHTML=`<div class="risk-recommendation"><strong>${esc(headings[selection.status]||"Company identity requires review")}</strong>
+    <p>${esc(selection.reason||"Add a company identifier, country, or website to distinguish the intended company.")}</p>
+    <p class="dim">Registry candidates are possible matches. Review the legal name and country before selecting. Selection uses the registry country and preserves your other details.</p>
+    <p class="dim">News and docket matches below remain a name search until identity is confirmed.${selection.candidate_count>candidates.length?` Showing ${candidates.length} of ${num(selection.candidate_count)} candidates; add details to narrow the search.`:""}</p>
+    ${candidates.map((candidate,index)=>`<div class="identity-candidate"><strong>${esc(candidate.name)}</strong> · ${esc(candidate.country||"Country not reported")}
+      ${candidate.website?` · ${esc(candidate.website)}`:""}
+      ${identityCandidateIdentifier(candidate)?`<button type="button" class="ghost" onclick="selectIdentityCandidate(${index})">Use this company · ${esc(identityCandidateIdentifier(candidate))}</button>`:'<span class="dim"> No supported identifier available; add details and retry.</span>'}</div>`).join("")}
+    <button type="button" class="ghost" onclick="editIdentityDetails()">Edit company details</button></div>`;
+}
+function restoreInvestigationQuery(){
+  const query=DATA?.query||{};
+  setType(query.entity_type||"organization");
+  const fields={f_name:"name",f_country:"country",f_city:"city",f_address:"address",f_website:"website",f_dob:"date_of_birth",f_reg:"registration_number"};
+  for(const [id,key] of Object.entries(fields))$(id).value=query[key]||"";
+  $("f_aliases").value=(query.aliases||[]).join(", ");
+}
+function editIdentityDetails(){restoreInvestigationQuery();newScreening();$("f_name").focus();}
+function identityCandidateIdentifier(candidate){
+  if(/^[A-Z0-9]{18}[0-9]{2}$/i.test(candidate.lei||""))return candidate.lei.toUpperCase();
+  if(/^\d{1,10}$/.test(String(candidate.cik||"")))return "CIK:"+candidate.cik;
+  return "";
+}
+function selectIdentityCandidate(index){
+  const candidate=DATA.entity_resolution?.selection?.candidates?.[index];
+  if(!candidate||!identityCandidateIdentifier(candidate))return;
+  const originalName=DATA.query?.name;
+  restoreInvestigationQuery();$("f_name").value=candidate.name;$("f_reg").value=identityCandidateIdentifier(candidate);
+  if(originalName&&originalName.toLowerCase()!==candidate.name.toLowerCase()){
+    $("f_aliases").value=[...new Set([originalName,...(DATA.query?.aliases||[])])].join(", ");
+  }
+  if(candidate.country)$("f_country").value=candidate.country;
+  return runInvestigation();
+}
 function renderDashboard(){
   const d=DATA,s=d.supplier,r=d.risk,ms=d.media_summary;
+  const identitySelection=d.entity_resolution?.selection;
+  const identityStatus=identitySelection&&identitySelection.status!=="selected"?identitySelection.status:s.status;
+  renderIdentitySelection();
   const level=["low","medium","high","critical"].includes(r.level)?r.level:"neutral";
   const sanctionsAvailable=d.sanctions.available!==false&&d.sources_consulted?.ofac!==false&&Number(d.sanctions.list_size)>0;
   const mediaUnavailable=ms.available===false||(ms.available!==true&&d.sources_consulted?.gdelt===false&&!d.sources_consulted?.google_news);
@@ -583,7 +626,7 @@ function renderDashboard(){
   $("rTab").textContent=s.name;
   $("caseMeta").innerHTML=`<span class="case-meta-item">${esc(s.country||"Country not reported")}</span>
     <span class="case-meta-item">${esc(s.entity_type||"Type not reported")}</span>
-    <span class="case-meta-item">Registry identity: ${esc(s.status||"Not resolved")}</span>
+    <span class="case-meta-item">Registry identity: ${esc(identityStatus||"Not resolved")}</span>
     <span class="case-mode">${esc(provenance(d,DATA_ORIGIN))}</span>`;
   if(!sample&&d.query?.name&&d.query.name!==s.name){
     $("caseMeta").innerHTML+=`<span class="case-meta-item">Searched as ${esc(d.query.name)} · ${esc(s.primary_source||"Source")} legal name shown</span>`;
@@ -594,7 +637,7 @@ function renderDashboard(){
       <div><strong class="risk-score-number">${num(evidenceScore(r.score,100))}</strong><span class="risk-score-denom">/100</span>
       <span class="badge b-${level}">${esc(String(r.level||"unknown").toUpperCase())}</span></div></div>
     <dl class="risk-facts">
-      <div><dt>Identity</dt><dd>${esc(s.status||"Not resolved")} &middot; ${fixed(s.identity_confidence)}<small class="dim"> Registry match score; not a screening clearance</small></dd></div>
+      <div><dt>Identity</dt><dd>${esc(identityStatus||"Not resolved")} &middot; ${fixed(s.identity_confidence)}<small class="dim"> Registry match score; not a screening clearance</small></dd></div>
       <div><dt>Sanctions</dt><dd>${d.sanctions.match?"MATCH":sanctionsAvailable?"No match":"Unavailable / not screened"}</dd></div>
       <div><dt>Adverse media</dt><dd>${mediaUnavailable?"Unavailable / not screened":`${num(ms.total??d.adverse_media.length)} articles`}</dd></div>
       <div><dt>Litigation</dt><dd>${litigationUnavailable?"Unavailable / not screened":`${(d.litigation.cases||[]).length} docket ${(d.litigation.cases||[]).length===1?"match":"matches"}${d.litigation.truncated?" (limited)":""}`}</dd></div>

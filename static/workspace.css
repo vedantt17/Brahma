@@ -298,3 +298,8 @@ button, .btn, a, summary, input, textarea, select { transition: color 160ms var(
 .search-live small { display: block; margin-top: 6px; color: var(--muted); font-size: 12px; line-height: 1.6; }
 
 #cancelInvestigation[hidden] { display: none; }
+#identitySelection[hidden] { display: none; }
+#identitySelection { margin-bottom: 24px; border: 1px solid var(--blue-line); border-radius: 12px; background: var(--surface, white); }
+#identitySelection .risk-recommendation { display: block; padding: 20px; }
+#identitySelection .identity-candidate { margin: 12px 0; padding: 14px; border: 1px solid var(--line); border-radius: 8px; overflow-wrap: anywhere; }
+#identitySelection .identity-candidate button { display: flex; margin-top: 10px; max-width: 100%; white-space: normal; }

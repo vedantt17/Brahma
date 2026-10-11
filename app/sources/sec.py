@@ -286,7 +286,7 @@ async def _insiders(
 
 
 async def _submission(cik: str) -> dict | None:
-    return await fetch_json(SUBMISSIONS_URL.format(cik=cik), ttl_hours=24)
+    return await fetch_json(SUBMISSIONS_URL.format(cik=str(cik).zfill(10)), ttl_hours=24)
 
 
 # EDGAR reports a US filer's location as a bare state code with country=null,
@@ -355,9 +355,26 @@ def _recent_filings(sub: dict, limit: int = 8) -> list[dict]:
     return out
 
 
-async def search(name: str, country: str | None = None) -> list[EntityRecord]:
+async def enrich(record: EntityRecord) -> EntityRecord:
+    """Fetch insider evidence only for the entity selected by the resolver."""
+    cik = record.raw.get("cik") or record.source_id
+    sub = await _submission(str(cik)) if cik else None
+    if sub:
+        officers, transactions = await _insiders(str(cik), sub, record.name,
+                                                  limit=14, max_filings=30)
+        record.officers = [officer["name"] for officer in officers]
+        record.raw.update(officers=officers, transactions=transactions)
+    return record
+
+
+async def search(name: str, country: str | None = None, *,
+                 registration_number: str | None = None) -> list[EntityRecord]:
     """Return candidate SEC registrants for the query name."""
-    matches = await _find_ciks(name)
+    identifier = (registration_number or "").strip().upper()
+    if identifier.startswith("CIK:") and identifier[4:].isdigit():
+        matches = [{"cik": identifier[4:].lstrip("0") or "0", "title": name}]
+    else:
+        matches = await _find_ciks(name)
     records: list[EntityRecord] = []
 
     for rank, match in enumerate(matches):
@@ -377,16 +394,7 @@ async def search(name: str, country: str | None = None) -> list[EntityRecord]:
         # Form 4s are one HTTP request each, so only the strongest candidates
         # earn a deep insider pull. Weak candidates still get enough to
         # corroborate identity across sources.
-        if rank == 0:
-            officers, transactions = await _insiders(
-                match["cik"], sub, issuer_name, limit=14, max_filings=30
-            )
-        elif rank < 3:
-            officers, transactions = await _insiders(
-                match["cik"], sub, issuer_name, limit=5, max_filings=6
-            )
-        else:
-            officers, transactions = [], []
+        officers, transactions = [], []
 
         records.append(
             EntityRecord(

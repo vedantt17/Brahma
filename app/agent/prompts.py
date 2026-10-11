@@ -26,6 +26,9 @@ Identity confidence is a heuristic registry match score, not a probability or
 screening clearance. Court docket matches are bounded name-search results, not
 a comprehensive lawsuit count or proof of wrongdoing. Respect retrieval limits
 and the media search window in the payload; failed coverage is not a clean result.
+When entity_resolution.selection is ambiguous, not_found or identifier_conflict,
+no company identity has been selected. Do not describe a candidate as the resolved
+company or attribute name-search news/dockets to a particular legal entity.
 
 Be direct and concise. This output is consumed by an automated procurement
 agent, not a human reader."""

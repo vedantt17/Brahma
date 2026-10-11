@@ -1,5 +1,39 @@
 # Brahma build verification
 
+## General company disambiguation — October 11, 2026
+
+- Replaced organization selection by first fuzzy/exact name hit with a separate
+  ambiguity-aware selector. Legal and registered trading names, source identifiers,
+  supplied country and authoritative website fields distinguish entities.
+  Credible brand-prefix candidates prevent an exact namesake from silently winning.
+  Unknown source fields are not affirmative matches; conflicting details and
+  identifiers require review. The matching code contains no company catalog.
+- GLEIF retrieves up to two 50-record legal-name pages and one 50-record
+  full-text alias page, deduplicates LEIs and reports limits/truncation. Ownership
+  requests were removed from candidate retrieval. GLEIF and SEC enrich only the
+  selected record with bounded time. Explicit CIK lookup uses the padded SEC URL.
+- Unresolved reports retain the input name, show possible legal entities with
+  actionable LEI/CIK choices, and prevent onboarding recommendations even with
+  complete source coverage or a permissive LLM recommendation. Name-search news
+  and dockets remain explicitly provisional until identity selection.
+- Real OpenAI brand-only request returned HTTP 200 in 16.51 seconds and four
+  operating/legal candidates, with no automatic namesake selection. Choosing
+  `OPENAI OPCO, LLC` by LEI `984500C7AD3A48B9FP18` returned HTTP 200 in 14.24s,
+  the selected entity and 40 live headlines searched under the retained brand.
+- Live identifier-backed checks returned MICROSOFT CORP (`CIK:789019`),
+  Apple Inc. (`CIK:320193`) and NVIDIA CORP (`CIK:1045810`) as selected registry
+  identities, each with 40 news headlines. An invented unknown-company query
+  stayed unresolved. These checks do not establish universal registry coverage.
+- Final full suite: **277 tests and 230 subtests passed** in 43.62 seconds.
+  Includes broad brand/namesake regressions, unknown-country competitors,
+  manual identifier choice, alias preservation, SEC lookup/enrichment and an API
+  test preventing clearance of ambiguous entities. Node syntax/diff checks passed.
+- Chromium submitted a real OpenAI search, displayed four candidates, chose the
+  operating entity and rendered 40 live news headlines. At 1440/390px there were
+  no page errors or horizontal overflow. Screenshots:
+  `artifacts/company-choice-1440.png`, `artifacts/company-choice-390.png`,
+  `artifacts/company-selected-1440.png`, `artifacts/company-selected-390.png`.
+
 ## Sanctions download network diagnosis — October 11, 2026
 
 - Official SDN and ALT export endpoints both responded HTTP 302 and redirected

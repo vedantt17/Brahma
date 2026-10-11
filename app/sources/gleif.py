@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import re
+import asyncio
 
 from app.http_client import fetch_json
 from app.resolution.engine import EntityRecord
@@ -16,6 +17,26 @@ log = logging.getLogger(__name__)
 
 BASE = "https://api.gleif.org/api/v1"
 SEARCH_URL = f"{BASE}/lei-records"
+
+
+class CandidateRecords(list):
+    """Registry candidates with explicit bounded retrieval provenance."""
+
+    def __init__(self, records, metadata):
+        super().__init__(records)
+        self.search_metadata = metadata
+
+
+async def enrich(record: EntityRecord) -> EntityRecord:
+    """Fetch ownership only after the caller has selected this identity."""
+    if record.source != "GLEIF" or not record.source_id:
+        return record
+    relations = await asyncio.gather(*(
+        _relation(record.source_id, kind)
+        for kind in ("direct-parent", "ultimate-parent")
+    ))
+    record.raw["parents"] = [relation for relation in relations if relation]
+    return record
 
 
 def _address_text(block: dict | None) -> tuple[str | None, str | None, str | None]:
@@ -51,7 +72,7 @@ async def _relation(lei: str, kind: str) -> dict | None:
 
 
 async def search(
-    name: str, country: str | None = None, limit: int = 8,
+    name: str, country: str | None = None, limit: int = 100,
     *, registration_number: str | None = None,
 ) -> list[EntityRecord]:
     identifier = (registration_number or "").strip().upper()
@@ -61,16 +82,59 @@ async def search(
         data = await fetch_json(f"{SEARCH_URL}/{identifier}", ttl_hours=24)
         if isinstance(data, dict) and isinstance(data.get("data"), dict):
             data = {**data, "data": [data["data"]]}
+        nodes = data.get("data") if isinstance(data, dict) else None
+        metadata = {"exact_identifier": True, "truncated": False}
     else:
         # Full-text relevance can rank funds mentioning a company ahead of
         # the company itself. Search the legal-name field instead.
-        params = {"filter[entity.legalName]": name, "page[size]": str(limit)}
-        data = await fetch_json(SEARCH_URL, params=params, ttl_hours=24)
-    if not isinstance(data, dict) or not isinstance(data.get("data"), list):
+        budget = max(1, min(int(limit), 100))
+        nodes = []
+        metadata = {"exact_identifier": False, "truncated": False,
+                    "legal_candidate_limit": budget, "alias_candidate_limit": 50,
+                    "search_name": name}
+        # The default eight-result window often contained only investment
+        # products mentioning a brand. Collect legal-name candidates first,
+        # then a bounded full-text pass for registered trading/other names.
+        legal_total = None
+        for page in range(1, 3):
+            params = {"filter[entity.legalName]": name,
+                      "page[size]": str(min(50, budget)), "page[number]": str(page)}
+            data = await fetch_json(SEARCH_URL, params=params, ttl_hours=24)
+            if not isinstance(data, dict) or not isinstance(data.get("data"), list):
+                if not nodes:
+                    raise RuntimeError("GLEIF search unavailable or malformed")
+                metadata["truncated"] = True
+                break
+            nodes.extend(data["data"])
+            pagination = (data.get("meta") or {}).get("pagination") or {}
+            legal_total = pagination.get("total", legal_total)
+            has_next = bool((data.get("links") or {}).get("next")) or (
+                isinstance(pagination.get("lastPage"), int) and page < pagination["lastPage"])
+            if len(nodes) >= budget or not has_next:
+                metadata["truncated"] = has_next
+                break
+        metadata["legal_name_result_count"] = legal_total
+        # GLEIF rejects filter[entity.otherNames.name]. Its documented
+        # fulltext endpoint can retrieve aliases; local resolution must still
+        # compare the legal/other names instead of trusting fulltext rank.
+        alias_data = await fetch_json(SEARCH_URL, params={"filter[fulltext]": name,
+                                      "page[size]": "50"}, ttl_hours=24)
+        if isinstance(alias_data, dict) and isinstance(alias_data.get("data"), list):
+            nodes.extend(alias_data["data"])
+            metadata["alias_search_available"] = True
+            alias_pagination = (alias_data.get("meta") or {}).get("pagination") or {}
+            metadata["alias_result_count"] = alias_pagination.get("total")
+            metadata["truncated"] |= bool((alias_data.get("links") or {}).get("next")) or (
+                isinstance(alias_pagination.get("lastPage"), int)
+                and alias_pagination["lastPage"] > 1)
+        else:
+            metadata["alias_search_available"] = False
+    if not isinstance(nodes, list):
         raise RuntimeError("GLEIF search unavailable or malformed")
 
     records: list[EntityRecord] = []
-    for node in data.get("data") or []:
+    seen = set()
+    for node in nodes:
         attrs = node.get("attributes") or {}
         entity = attrs.get("entity") or {}
         legal_name = (entity.get("legalName") or {}).get("name")
@@ -78,6 +142,9 @@ async def search(
             continue
 
         lei = attrs.get("lei") or node.get("id")
+        if lei in seen:
+            continue
+        seen.add(lei)
         address, city, addr_country = _address_text(entity.get("legalAddress"))
         hq_address, hq_city, hq_country = _address_text(
             entity.get("headquartersAddress")
@@ -87,13 +154,6 @@ async def search(
             for other in (entity.get("otherNames") or [])
             if other.get("name")
         ]
-
-        parents = []
-        if lei:
-            for kind in ("direct-parent", "ultimate-parent"):
-                rel = await _relation(lei, kind)
-                if rel:
-                    parents.append(rel)
 
         records.append(
             EntityRecord(
@@ -119,9 +179,10 @@ async def search(
                     "registered_as": entity.get("registeredAs"),
                     "legal_address": address,
                     "headquarters_address": hq_address,
-                    "parents": parents,
+                    "parents": [],
                 },
             )
         )
 
-    return records
+    metadata["returned_count"] = len(records)
+    return CandidateRecords(records, metadata)

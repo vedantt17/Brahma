@@ -252,6 +252,41 @@ def test_live_api_uses_rss_fallback_as_news_coverage_with_correct_provenance(api
     assert api("GET", f"/api/v1/investigations/{result['investigation_id']}").json() == result
 
 
+def test_generic_ambiguity_requires_choice_even_with_complete_source_coverage(api, monkeypatch):
+    from app.resolution.engine import EntityRecord
+    from app.sources.gdelt import MediaResults
+    ids = ["A" * 18 + "01", "B" * 18 + "02"]
+    records = [EntityRecord(source="GLEIF", source_id=identifier, name="Example Labs LLC",
+                            country=country, raw={"lei": identifier})
+               for identifier, country in zip(ids, ["US", "GB"])]
+    monkeypatch.setattr(pipeline.sec, "search", AsyncMock(return_value=[]))
+    monkeypatch.setattr(pipeline.gleif, "search", AsyncMock(return_value=records))
+    enrichment = AsyncMock()
+    monkeypatch.setattr(pipeline.gleif, "enrich", enrichment)
+    monkeypatch.setattr(pipeline.news, "search", AsyncMock(return_value=MediaResults([], {
+        "providers": {"gdelt": True}, "raw_count": 0})))
+    monkeypatch.setattr(pipeline.courtlistener, "search", AsyncMock(return_value={
+        "available": True, "cases": []}))
+    monkeypatch.setattr(ofac, "screen", AsyncMock(return_value={"match": False, "list_size": 100}))
+    monkeypatch.setattr(pipeline, "generate_report", AsyncMock(return_value={
+        "recommendation": "Standard onboarding may proceed."}))
+    result = api("POST", "/api/v1/supplier/investigate", json={"name": "Example Labs"}).json()
+    assert result["supplier"]["name"] == "Example Labs"
+    assert result["supplier"]["verified"] is False
+    assert result["entity_resolution"]["selection"]["status"] == "ambiguous"
+    assert len(result["entity_resolution"]["selection"]["candidates"]) == 2
+    assert result["risk"]["coverage_assessment"]["complete"] is True
+    assert "Confirm the legal entity" in result["agent_summary"]["recommendation"]
+    enrichment.assert_not_called()
+    selected = api("POST", "/api/v1/supplier/investigate", json={
+        "name": "Example Labs LLC", "registration_number": ids[0]}).json()
+    assert selected["entity_resolution"]["selection"]["status"] == "selected"
+    assert selected["supplier"]["lei"] == ids[0]
+    assert selected["supplier"]["verified"] is True
+    enrichment.assert_awaited_once_with(records[0])
+    assert api("GET", f"/api/v1/investigations/{selected['investigation_id']}").json() == selected
+
+
 def test_error_and_not_found_contracts(api, monkeypatch):
     monkeypatch.setattr(v1, "investigate", AsyncMock(side_effect=RuntimeError("private-token")))
     failed = api("POST", "/api/v1/supplier/investigate", json={"name": "Acme"})

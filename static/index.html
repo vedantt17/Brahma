@@ -10,7 +10,7 @@
 <link rel="preload" href="/static/vendor/geist-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/static/brahma.css?v=workspace-1">
 <link rel="stylesheet" href="/static/evidence-workspace.css?v=workspace-5">
-<link rel="stylesheet" href="/static/workspace.css?v=news-fallback-8">
+<link rel="stylesheet" href="/static/workspace.css?v=company-selection-9">
 </head>
 <body>
 <a class="skip-link" href="#workspace">Skip to workspace</a>
@@ -69,6 +69,7 @@
     </section>
     <section class="view" id="view2" aria-label="Investigation evidence">
       <header class="case-heading"><div class="case-identity"><span class="case-mark"><i data-lucide="file-search" aria-hidden="true"></i></span><div><h1 id="rTab">Entity report</h1><p id="caseMeta"></p></div></div><div class="case-actions"><button class="ghost" onclick="newScreening()"><i data-lucide="plus" aria-hidden="true"></i>New investigation</button><button class="primary" onclick="go(3)"><i data-lucide="workflow" aria-hidden="true"></i>View network</button></div></header>
+      <section id="identitySelection" class="risk-summary" aria-label="Resolve company identity" hidden></section>
       <section class="risk-summary" aria-label="Risk assessment"><div id="riskbox"></div></section>
       <p id="evidenceStatus" class="status" role="status" aria-live="polite"></p>
       <button class="filter-toggle ghost" id="filterToggle" aria-controls="evidenceFilters" aria-expanded="false" onclick="toggleEvidenceFilters()"><i data-lucide="sliders-horizontal" aria-hidden="true"></i>Filters &amp; sample cases</button>
@@ -126,7 +127,7 @@
   </main>
 </div>
 <script src="/static/vendor/lucide.min.js"></script>
-<script src="/static/app.js?v=news-fallback-8"></script>
+<script src="/static/app.js?v=company-selection-9"></script>
 <script src="/static/motion.js?v=polish-1"></script>
 </body>
 </html>
