@@ -35,6 +35,19 @@ DATABASE_URL=sqlite+aiosqlite:///./data/brahma.db uvicorn app.main:app --host 12
 - **Developers:** REST playground, MCP client configuration, downloadable Python connector and OpenAPI reference at `/docs`.
 - **Export:** the current investigation is available as a JSON download.
 
+The **Find an entity** search filters curated samples and also offers **Search
+company** / **Search person** for any typed name. Those actions start a live
+investigation; they do not require a matching sample. They clear previous subject
+details so a new name is not searched with another entity's country or aliases.
+Use the main investigation form when supplying additional identity details.
+
+Live results require outbound access to the source adapters. In a restricted
+cloud environment, allow `api.gleif.org`, `api.gdeltproject.org`, `www.sec.gov`,
+`data.sec.gov`, `efts.sec.gov`, `www.courtlistener.com`,
+`sanctionslistservice.ofac.treas.gov`, and `www.treasury.gov`. SEC also requires
+a real contact User-Agent. An unavailable source is a coverage gap, not a
+verified identity or a clean screening result.
+
 The existing API routes remain compatible. Primary endpoint:
 
 ```http

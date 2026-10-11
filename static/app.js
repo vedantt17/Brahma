@@ -180,7 +180,21 @@ function renderEntityList(){
   $("entList").innerHTML=rows.length?rows.map(s=>`
     <button type="button" class="${s.id===CURRENT_ID?"on":""}" onclick="loadDemo(${jsArg(s.id)})" title="${esc(s.tagline)}">
       <span>${esc(s.name)}</span><span class="en">${esc(s.article_count)}</span></button>`).join("")
-    : `<div class="no">No entity matches "${esc(q)}".</div>`;
+    : `<div class="no">${q?`No sample cases match "${esc(q)}". Use a live investigation above.`:"No sample cases available."}</div>`;
+  const types=ENT_FILTER==="all"?["organization","individual"]:[ENT_FILTER];
+  $("entitySearchActions").innerHTML=q?`<p>Investigate <strong>${esc(q)}</strong> using live sources</p>
+    ${types.map(type=>`<button type="button" class="ghost" onclick="startEntitySearch('${type}')">${type==="individual"?"Search person":"Search company"}<span aria-hidden="true"> →</span></button>`).join("")}
+    <small>Queries external sources. Source availability varies.</small>`:"";
+}
+function startEntitySearch(type){
+  const name=$("entSearch").value.trim();
+  if(!name||!["organization","individual"].includes(type))return;
+  cancelRequest("screen");
+  for(const id of ["f_aliases","f_dob","f_reg","f_country","f_city","f_website","f_address"])$(id).value="";
+  setType(type);$("f_name").value=name;$("f_name").removeAttribute("aria-invalid");
+  $("run").disabled=false;
+  $("f_name").focus();
+  return runInvestigation();
 }
 function renderEntityRail(){
   const q=($("railSearch")?.value||"").trim().toLowerCase();

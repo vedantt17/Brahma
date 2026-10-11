@@ -125,6 +125,45 @@ vm.runInContext("DATA=fixture;DATA_ORIGIN='live';",context);
 
 @unittest.skipUnless(NODE, "Node is required for renderer tests")
 class EvidenceRenderingTests(unittest.TestCase):
+    def test_unknown_search_offers_live_actions_and_escapes_query(self):
+        html = self.run_js("""
+node('entSearch').value='Anthropic <img src=x>';
+SUBJECTS_LIST=[];ENT_FILTER='all';renderEntityList();
+return {actions:node('entitySearchActions').innerHTML,list:node('entList').innerHTML};
+""")
+        self.assertIn("Search company", html["actions"])
+        self.assertIn("Search person", html["actions"])
+        self.assertIn("&lt;img src=x&gt;", html["actions"])
+        self.assertNotIn("<img", html["actions"])
+        self.assertIn("No sample cases match", html["list"])
+
+    def test_live_search_resets_stale_details_and_uses_selected_type(self):
+        result = self.run_js("""
+node('entSearch').value='  Ada Lovelace  ';
+for(const id of ['f_aliases','f_dob','f_reg','f_country','f_city','f_website','f_address'])node(id).value='Previous subject';
+let calls=0;runInvestigation=()=>{calls++;return 'started';};
+const started=startEntitySearch('individual');
+return {started,calls,type:TYPE,name:node('f_name').value,
+ details:['f_aliases','f_dob','f_reg','f_country','f_city','f_website','f_address'].map(id=>node(id).value)};
+""")
+        self.assertEqual(result, {"started": "started", "calls": 1,
+                                  "type": "individual", "name": "Ada Lovelace",
+                                  "details": [""] * 7})
+
+    def test_empty_search_and_invalid_type_do_not_start_a_request(self):
+        result = self.run_js("""
+let calls=0;runInvestigation=()=>calls++;
+node('entSearch').value=' ';startEntitySearch('organization');renderEntityList();
+const empty=node('entitySearchActions').innerHTML;
+node('entSearch').value='Anthropic';startEntitySearch('invalid');
+ENT_FILTER='organization';renderEntityList();
+return {calls,empty,actions:node('entitySearchActions').innerHTML};
+""")
+        self.assertEqual(result["calls"], 0)
+        self.assertEqual(result["empty"], "")
+        self.assertIn("Search company", result["actions"])
+        self.assertNotIn("Search person", result["actions"])
+
     def run_js(self, script, data=None):
         result = subprocess.run(
             [NODE, "-e", HARNESS, str(ROOT / "static" / "app.js")],

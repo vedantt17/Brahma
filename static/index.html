@@ -10,7 +10,7 @@
 <link rel="preload" href="/static/vendor/geist-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/static/brahma.css?v=workspace-1">
 <link rel="stylesheet" href="/static/evidence-workspace.css?v=workspace-5">
-<link rel="stylesheet" href="/static/workspace.css?v=blue-green-deep-4">
+<link rel="stylesheet" href="/static/workspace.css?v=entity-search-5">
 </head>
 <body>
 <a class="skip-link" href="#workspace">Skip to workspace</a>
@@ -38,10 +38,10 @@
       <div id="modeScreen" class="mode-panel on">
         <div class="intake workspace-document"><div class="intake-grid">
           <aside class="intake-side" aria-label="Sample investigations">
-            <div class="section-label"><h2>Sample investigations</h2><span class="cnt" id="hStatEnt">0</span></div><p class="field-hint">Curated example data. Not live screening.</p>
-            <div class="search-field"><i data-lucide="search" aria-hidden="true"></i><input id="entSearch" class="search" aria-label="Search sample investigations" placeholder="Search entities" oninput="renderEntityList()" autocomplete="off"></div>
+            <div class="section-label"><h2>Find an entity</h2><span class="cnt" id="hStatEnt" title="Curated sample cases">0</span></div><p class="field-hint">Search live sources or open a curated sample case.</p>
+            <div class="search-field"><i data-lucide="search" aria-hidden="true"></i><input id="entSearch" class="search" aria-label="Search companies, people, or sample cases" placeholder="Search a company or person" maxlength="300" oninput="renderEntityList()" autocomplete="off"></div>
             <div class="subseg" aria-label="Filter sample entity type"><button class="on" data-f="all" onclick="filterEntities('all')">All</button><button data-f="organization" onclick="filterEntities('organization')">Companies</button><button data-f="individual" onclick="filterEntities('individual')">People</button></div>
-            <div class="erail tall" id="entList"><div class="empty">Loading sample cases...</div></div><div class="sample-footnote"><i data-lucide="flask-conical" aria-hidden="true"></i><span>Sample environment</span></div>
+            <div class="search-live" id="entitySearchActions" aria-live="polite"></div><div class="erail tall" id="entList"><div class="empty">Loading sample cases...</div></div><div class="sample-footnote"><i data-lucide="flask-conical" aria-hidden="true"></i><span>Sample environment</span></div>
           </aside>
           <section class="screening-form" aria-label="New investigation">
             <div class="form-heading"><div><h2>New investigation</h2><p class="field-hint">Start with a legal name. Add details to improve identity matching.</p></div><span class="form-symbol"><i data-lucide="fingerprint" aria-hidden="true"></i></span></div>
@@ -126,7 +126,7 @@
   </main>
 </div>
 <script src="/static/vendor/lucide.min.js"></script>
-<script src="/static/app.js?v=blue-green-deep-4"></script>
+<script src="/static/app.js?v=entity-search-5"></script>
 <script src="/static/motion.js?v=polish-1"></script>
 </body>
 </html>

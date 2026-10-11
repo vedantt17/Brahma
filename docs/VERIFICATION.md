@@ -1,5 +1,24 @@
 # Brahma build verification
 
+## Entity search correction — October 11, 2026
+
+- The former sample-only search now offers explicit company/person live actions.
+  Unknown names keep an honest "No sample cases match" message while still
+  providing access to the live workflow.
+- Focused frontend/rendering checks: **32 passed, 19 subtests passed**, including
+  three new tests for unknown-name actions, escaped names, entity type selection,
+  stale-detail clearing, empty queries and invalid types. The broader suite run
+  before collecting those three new tests passed **195 tests and 230 subtests**.
+- Chromium verified company/person payloads and cleared aliases/country at
+  1440px and 390px with no page errors or horizontal overflow. API responses
+  were intercepted for these UI checks, not claimed as real source coverage.
+- A separate real Anthropic investigation returned HTTP 200 with all five source
+  coverage flags false and `supplier.verified=false`. A direct GLEIF connection
+  was denied by the cloud proxy (CONNECT 403).
+- Required source domains were saved to the environment network configuration
+  draft, preserving the package-manager preset. This save does not apply or
+  publish the configuration; live source access is still blocked in this instance.
+
 ## Shared workspace polish — October 11, 2026
 
 Expanded palette follow-up: the focused frontend suite passed **53 tests and

@@ -289,3 +289,10 @@ button, .btn, a, summary, input, textarea, select { transition: color 160ms var(
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; scroll-behavior: auto !important; }
 }
+
+/* A typed name can start a live investigation even without a curated sample. */
+.search-live:empty { display: none; }
+.search-live { margin: 12px 0; padding: 14px; border: 1px solid var(--blue-line); border-radius: 8px; background: var(--blue-soft); }
+.search-live p { margin: 0 0 10px; font-size: 13px; color: var(--blue-ink); }
+.search-live .ghost { width: 100%; justify-content: space-between; margin-bottom: 6px; }
+.search-live small { display: block; margin-top: 6px; color: var(--muted); font-size: 12px; line-height: 1.6; }
