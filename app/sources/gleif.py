@@ -54,8 +54,8 @@ async def search(
 ) -> list[EntityRecord]:
     params = {"filter[fulltext]": name, "page[size]": str(limit)}
     data = await fetch_json(SEARCH_URL, params=params, ttl_hours=24)
-    if not isinstance(data, dict):
-        return []
+    if not isinstance(data, dict) or not isinstance(data.get("data"), list):
+        raise RuntimeError("GLEIF search unavailable or malformed")
 
     records: list[EntityRecord] = []
     for node in data.get("data") or []:

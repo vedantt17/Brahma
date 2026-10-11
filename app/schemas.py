@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class InvestigationRequest(BaseModel):
@@ -28,6 +28,11 @@ class InvestigationRequest(BaseModel):
         description="Known trading names or alternate spellings.",
     )
 
+    @field_validator("name", mode="before")
+    @classmethod
+    def strip_name(cls, value):
+        return value.strip() if isinstance(value, str) else value
+
 
 class StrategyRequest(BaseModel):
     """A high-stakes business question for the executive decision board."""
@@ -36,6 +41,11 @@ class StrategyRequest(BaseModel):
         ..., min_length=6, max_length=400,
         examples=["Should Salesforce acquire Notion?"],
     )
+
+    @field_validator("question", mode="before")
+    @classmethod
+    def strip_question(cls, value):
+        return value.strip() if isinstance(value, str) else value
 
 
 class GraphInsightRequest(BaseModel):

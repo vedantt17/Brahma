@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     claude_effort: str = "high"
 
     # Outbound HTTP identity. SEC EDGAR rejects requests without a contact.
-    user_agent: str = "SupplierIntelligenceAPI/0.1 (contact@example.com)"
+    user_agent: str = "Brahma/0.1 (contact@example.com)"
 
     # Embeddings: auto | openai | local | hashed
     embedding_backend: str = "auto"

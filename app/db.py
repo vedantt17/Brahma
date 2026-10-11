@@ -91,8 +91,13 @@ async def init_db() -> None:
 
 
 async def close_db() -> None:
-    if _engine is not None:
-        await _engine.dispose()
+    global _engine, _sessionmaker, ACTIVE_BACKEND
+    engine = _engine
+    _engine = None
+    _sessionmaker = None
+    ACTIVE_BACKEND = "uninitialized"
+    if engine is not None:
+        await engine.dispose()
 
 
 def session_factory() -> async_sessionmaker[AsyncSession]:

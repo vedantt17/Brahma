@@ -153,9 +153,8 @@ async def _load_tickers() -> list[dict]:
         return _ticker_cache
 
     data = await fetch_json(TICKERS_URL, ttl_hours=168)
-    if not isinstance(data, dict):
-        _ticker_cache = []
-        return _ticker_cache
+    if not isinstance(data, dict) or not data:
+        raise RuntimeError("SEC registrant list unavailable or malformed")
 
     entries = []
     for item in data.values():
@@ -170,6 +169,8 @@ async def _load_tickers() -> list[dict]:
                 "normalized": normalize_name(title),
             }
         )
+    if not entries:
+        raise RuntimeError("SEC registrant list contains no usable records")
     _ticker_cache = entries
     log.info("SEC: loaded %d registrants", len(entries))
     return entries
@@ -418,4 +419,6 @@ async def search(name: str, country: str | None = None) -> list[EntityRecord]:
             )
         )
 
+    if matches and not records:
+        raise RuntimeError("SEC submissions unavailable for matching registrants")
     return records

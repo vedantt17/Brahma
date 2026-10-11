@@ -33,3 +33,9 @@ Thumbs.db
 
 # Claude Code local config
 .claude/
+
+# Local browser dependencies and verification artifacts
+node_modules/
+artifacts/
+*.log
+.brahma-server.pid

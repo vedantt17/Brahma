@@ -60,6 +60,7 @@ def test_decide_without_key_returns_matching_sample(monkeypatch):
     out = asyncio.run(strategy.decide("Should Salesforce acquire Notion?"))
     assert out["verdict"]["decision"] == "NO-GO"
     assert "no live LLM key configured" in out["generated_by"]
+    assert out["sample"] is True
 
 
 def test_decide_without_key_and_no_match_is_a_structured_notice(monkeypatch):
@@ -173,4 +174,5 @@ def test_decide_falls_back_to_sample_when_openrouter_call_fails(monkeypatch):
     monkeypatch.setattr(board, "_call_openrouter_chat", failing_call)
     out = asyncio.run(strategy.decide("Should Salesforce acquire Notion?"))
     assert out["verdict"]["decision"] == "NO-GO"
-    assert "no live LLM key configured" in out["generated_by"]
+    assert "live generation failed" in out["generated_by"]
+    assert out["sample"] is True

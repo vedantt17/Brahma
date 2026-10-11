@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 
 from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import JSONResponse
 from sqlalchemy import func, select
 
 from app import crew
@@ -48,7 +49,7 @@ async def investigate_supplier(request: InvestigationRequest) -> InvestigationRe
         )
     except Exception as exc:  # noqa: BLE001
         log.exception("investigation failed")
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail="investigation failed") from exc
 
     return InvestigationResponse(**result)
 
@@ -90,7 +91,11 @@ async def get_investigation(investigation_id: int) -> dict:
 
 @router.post("/admin/ofac/refresh", summary="Force a re-download of the OFAC SDN list")
 async def refresh_ofac() -> dict:
-    count = await ofac.ingest(force=True)
+    try:
+        count = await ofac.ingest(force=True)
+    except Exception as exc:  # noqa: BLE001
+        log.exception("OFAC refresh failed")
+        raise HTTPException(status_code=503, detail="OFAC refresh failed") from exc
     return {"indexed_names": count}
 
 
@@ -172,10 +177,20 @@ async def demo_investigate(subject_id: str) -> dict:
 
 @router.get("/health", summary="Service and dependency status")
 async def health() -> dict:
-    async with database.session_factory()() as session:
-        investigations = (
-            await session.execute(select(func.count(Investigation.id)))
-        ).scalar_one()
+    try:
+        async with database.session_factory()() as session:
+            investigations = (
+                await session.execute(select(func.count(Investigation.id)))
+            ).scalar_one()
+    except Exception:  # noqa: BLE001 - readiness must survive storage outages
+        log.exception("health database check failed")
+        return JSONResponse(status_code=503, content={
+            "status": "unavailable",
+            "database": database.ACTIVE_BACKEND,
+            "embedding_backend": active_backend(),
+            "ofac_names_indexed": len(ofac._entries),
+            "investigations_stored": None,
+        })
 
     return {
         "status": "ok",

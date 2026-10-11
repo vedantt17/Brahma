@@ -1,14 +1,14 @@
-"""Argus MCP server.
+"""Brahma MCP server.
 
-Exposes the Argus investigate_supplier endpoint as an MCP tool so any
+Exposes the Brahma investigate_supplier endpoint as an MCP tool so any
 MCP-compatible agent (Claude Code, Codex, and others) can screen an entity and
 receive the full evidence-backed intelligence object.
 
 Run it:
     pip install "mcp[cli]" httpx
-    ARGUS_URL=https://your-argus-host python mcp_server.py
+    BRAHMA_URL=http://127.0.0.1:8000 python mcp_server.py
 
-Then register it with your agent (see the "API & MCP" tab in the Argus UI).
+ARGUS_URL remains supported for existing integrations.
 """
 
 from __future__ import annotations
@@ -18,11 +18,14 @@ import os
 import httpx
 from mcp.server.fastmcp import FastMCP
 
-ARGUS_URL = os.environ.get(
-    "ARGUS_URL", "https://supplier-intelligence-api-1062146216736.us-central1.run.app"
+BRAHMA_URL = (
+    os.environ.get("BRAHMA_URL")
+    or os.environ.get("ARGUS_URL")
+    or "http://127.0.0.1:8000"
 ).rstrip("/")
+ARGUS_URL = BRAHMA_URL  # Backwards-compatible module attribute.
 
-mcp = FastMCP("argus")
+mcp = FastMCP("Brahma")
 
 
 @mcp.tool()
@@ -53,7 +56,7 @@ async def investigate_supplier(
 
     async with httpx.AsyncClient() as client:
         resp = await client.post(
-            f"{ARGUS_URL}/api/v1/supplier/investigate", json=payload, timeout=180
+            f"{BRAHMA_URL}/api/v1/supplier/investigate", json=payload, timeout=180
         )
         resp.raise_for_status()
         return resp.json()

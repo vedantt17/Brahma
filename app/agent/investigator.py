@@ -144,6 +144,8 @@ def _fallback_report(investigation: dict) -> dict:
             f"(similarity {sanctions.get('confidence', 0):.2f}, program "
             f"{entity.get('program')})." + _cite(evidence, "OFAC")
         )
+    elif not sanctions.get("list_size"):
+        sanctions_text = "OFAC screening unavailable - sanctions status unverified."
     else:
         sanctions_text = (
             "No OFAC SDN match found against "
@@ -167,6 +169,8 @@ def _fallback_report(investigation: dict) -> dict:
             f"{len(media)} negative article(s) found. Most severe: "
             f"{media[0]['title']}." + _cite(evidence, "GDELT")
         )
+    elif not investigation["sources_consulted"].get("gdelt"):
+        media_text = "Adverse-media source unavailable - coverage could not be checked."
     else:
         media_text = "No evidence available - no negative coverage matched."
 
@@ -198,5 +202,9 @@ def _fallback_report(investigation: dict) -> dict:
             if not ok
         ],
         "recommendation": investigation["_recommendation"],
-        "generated_by": "deterministic-fallback (no ANTHROPIC_API_KEY configured)",
+        "generated_by": (
+            "deterministic-fallback (live generation unavailable)"
+            if settings.anthropic_api_key
+            else "deterministic-fallback (no ANTHROPIC_API_KEY configured)"
+        ),
     }

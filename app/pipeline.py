@@ -71,11 +71,15 @@ async def investigate(
     # run: a report backed by three sources beats no report at all, and the
     # sources that missed are reported as coverage gaps.
     pending = [asyncio.ensure_future(task) for task in tasks]
-    done, still_running = await asyncio.wait(
-        pending, timeout=settings.investigation_timeout_seconds
-    )
-    for task in still_running:
-        task.cancel()
+    try:
+        done, still_running = await asyncio.wait(
+            pending, timeout=settings.investigation_timeout_seconds
+        )
+    finally:
+        for task in pending:
+            if not task.done():
+                task.cancel()
+        await asyncio.gather(*pending, return_exceptions=True)
     if still_running:
         log.warning(
             "investigation for %r hit the %ss budget; %d source(s) cancelled",
@@ -108,6 +112,7 @@ async def investigate(
     # An empty candidate list from a source that ran is a legitimate result,
     # but a source that raised was never really consulted.
     consulted["ofac"] = consulted["ofac"] and bool(sanctions.get("list_size"))
+    consulted["courtlistener"] = consulted["courtlistener"] and bool(litigation.get("available"))
 
     # ---- 2. Entity resolution --------------------------------------------
     candidates = sec_records + gleif_records
@@ -225,6 +230,8 @@ async def investigate(
     # ---- 7. Claude reasoning layer ---------------------------------------
     report = await generate_report(investigation)
     report.setdefault("recommendation", investigation["_recommendation"])
+    if not risk["coverage_assessment"]["complete"]:
+        report["recommendation"] = investigation["_recommendation"]
     report["rule_based_recommendation"] = investigation.pop("_recommendation")
     investigation["agent_summary"] = report
 
@@ -676,6 +683,8 @@ def _build_evidence(
     add(
         "OFAC",
         (
+            "OFAC screening unavailable; sanctions status unverified"
+            if not sanctions.get("list_size") else
             f"Sanctions screening against the SDN list "
             f"({sanctions.get('list_size', 0)} names): "
             + ("MATCH " + str((sanctions.get("matched_entity") or {}).get("name"))
@@ -801,5 +810,7 @@ async def _persist(
             result=investigation,
         )
         db.add(record)
+        await db.flush()
+        record.result = {**investigation, "investigation_id": record.id}
         await db.commit()
         return record.id

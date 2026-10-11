@@ -3,7 +3,7 @@
 # deploy time (sync: false) so the key never lives in the repository.
 services:
   - type: web
-    name: supplier-intelligence-api
+    name: brahma-intelligence
     runtime: python
     plan: free
     buildCommand: pip install -r requirements.txt
@@ -23,7 +23,7 @@ services:
       # SEC EDGAR rejects requests without a real contact address - change this
       # to your own before deploying.
       - key: USER_AGENT
-        value: "SupplierIntelligenceAPI/0.1 (contact@example.com)"
+        value: "Brahma/0.1 (contact@example.com)"
       - key: CLAUDE_MODEL
         value: "claude-opus-4-8"
       - key: ANTHROPIC_API_KEY

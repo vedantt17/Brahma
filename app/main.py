@@ -21,7 +21,7 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)-7s %(name)s: %(message)s",
 )
-log = logging.getLogger("supplier-intelligence")
+log = logging.getLogger("brahma")
 
 STATIC_DIR = PROJECT_ROOT / "static"
 
@@ -32,16 +32,24 @@ async def lifespan(app: FastAPI):
     # Warm the OFAC index in the background so the first investigation is not
     # blocked on a multi-megabyte download.
     task = asyncio.create_task(_warm_ofac())
-    yield
-    task.cancel()
-    await close_client()
-    await close_db()
+    try:
+        yield
+    finally:
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+        try:
+            await close_client()
+        finally:
+            await close_db()
 
 
 async def _warm_ofac() -> None:
     try:
         count = await ofac.ingest()
-        log.info("OFAC ready: %d names indexed", count)
+        if count:
+            log.info("OFAC ready: %d names indexed", count)
+        else:
+            log.warning("OFAC unavailable: no names indexed")
     except asyncio.CancelledError:
         raise
     except Exception as exc:  # noqa: BLE001
@@ -49,7 +57,7 @@ async def _warm_ofac() -> None:
 
 
 app = FastAPI(
-    title="Supplier Intelligence API",
+    title="Brahma API",
     version="0.1.0",
     description=(
         "AI-native third party risk investigation layer. Converts fragmented "
@@ -82,4 +90,4 @@ async def index():
         return FileResponse(
             index_file, headers={"Cache-Control": "no-cache, must-revalidate"}
         )
-    return {"service": "Supplier Intelligence API", "docs": "/docs"}
+    return {"service": "Brahma API", "docs": "/docs"}

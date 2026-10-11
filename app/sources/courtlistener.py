@@ -44,7 +44,7 @@ async def search(name: str, limit: int = 10) -> dict:
         SEARCH_URL, params=params, headers=_headers(), ttl_hours=24, retries=2
     )
 
-    if not isinstance(data, dict):
+    if not isinstance(data, dict) or not isinstance(data.get("results"), list):
         return {
             "available": False,
             "cases": [],

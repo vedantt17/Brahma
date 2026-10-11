@@ -95,9 +95,11 @@ def _clean(value: str | None) -> str | None:
     return None if value in ("", "-0-") else value
 
 
-async def _download(urls: list[str]) -> str | None:
+async def _download(urls: list[str], *, force: bool = False) -> str | None:
     for url in urls:
-        body = await fetch(url, ttl_hours=settings.ofac_refresh_hours, retries=2)
+        body = await fetch(
+            url, ttl_hours=settings.ofac_refresh_hours, retries=2, use_cache=not force
+        )
         if body and len(body) > 1000:
             log.info("OFAC: downloaded %s (%d bytes)", url, len(body))
             return body
@@ -107,7 +109,7 @@ async def _download(urls: list[str]) -> str | None:
 def _parse_sdn(body: str) -> list[dict]:
     rows: list[dict] = []
     for row in csv.reader(io.StringIO(body)):
-        if len(row) < 4:
+        if len(row) < 12 or not row[0].strip().isdigit():
             continue
         name = _clean(row[1])
         if not name:
@@ -174,14 +176,22 @@ async def _ingest_locked(force: bool) -> int:
         await _load_index()
         return len(_entries)
 
-    sdn_body = await _download(SDN_URLS)
+    sdn_body = await _download(SDN_URLS, force=force)
     if not sdn_body:
         log.error("OFAC: SDN download failed; screening will use any cached data")
         await _load_index()
+        if force:
+            raise RuntimeError("OFAC download failed; cached data preserved")
         return len(_entries)
 
     records = _parse_sdn(sdn_body)
-    alt_body = await _download(ALT_URLS)
+    if not records:
+        log.error("OFAC: invalid SDN response; preserving cached sanctions list")
+        await _load_index()
+        if force:
+            raise RuntimeError("OFAC response invalid; cached data preserved")
+        return len(_entries)
+    alt_body = await _download(ALT_URLS, force=force)
     if alt_body:
         records += _parse_alt(alt_body)
 

@@ -77,8 +77,8 @@ async def search(name: str, max_records: int = 75) -> list[dict]:
         "sort": "hybridrel",
     }
     data = await fetch_json(DOC_API, params=params, ttl_hours=6)
-    if not isinstance(data, dict):
-        return []
+    if not isinstance(data, dict) or not isinstance(data.get("articles"), list):
+        raise RuntimeError("GDELT search unavailable or malformed")
 
     results: list[dict] = []
     seen_titles: set[str] = set()

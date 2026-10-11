@@ -1,0 +1,219 @@
+"""Offline API contracts, with the real lifespan and an isolated SQLite DB."""
+
+import asyncio
+from unittest.mock import AsyncMock
+
+import httpx
+import pytest
+
+from app import db, main, pipeline
+from app.agent import investigator
+from app.api import v1
+from app.config import settings
+from app.resolution import embeddings
+from app.schemas import InvestigationResponse
+from app.sources import ofac
+from app.strategy import board
+
+
+@pytest.fixture(autouse=True)
+def offline(monkeypatch):
+    async def forbidden(*args, **kwargs):
+        pytest.fail("External HTTP is forbidden in offline API tests")
+
+    monkeypatch.setattr(httpx.AsyncHTTPTransport, "handle_async_request", forbidden)
+    for key in ("anthropic_api_key", "openai_api_key", "openrouter_api_key",
+                "courtlistener_api_token"):
+        monkeypatch.setattr(settings, key, None)
+    monkeypatch.setattr(settings, "embedding_backend", "hashed")
+    monkeypatch.setattr(embeddings, "_backend", "hashed")
+    monkeypatch.setattr(investigator, "_client", None)
+    monkeypatch.setattr(board, "_get_client", lambda: None)
+
+
+@pytest.fixture
+def api(monkeypatch, tmp_path):
+    monkeypatch.setattr(settings, "database_url",
+                        f"sqlite+aiosqlite:///{(tmp_path / 'api.db').as_posix()}")
+    monkeypatch.setattr(settings, "allow_sqlite_fallback", False)
+    monkeypatch.setattr(ofac, "_entries", [])
+    monkeypatch.setattr(ofac, "_loaded", False)
+    monkeypatch.setattr(ofac, "ingest", AsyncMock(return_value=0))
+    with asyncio.Runner() as runner:
+        lifespan = main.app.router.lifespan_context(main.app)
+        runner.run(asyncio.wait_for(lifespan.__aenter__(), timeout=30))
+        client = httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=main.app), base_url="http://test"
+        )
+        try:
+            yield lambda method, path, **kw: runner.run(
+                asyncio.wait_for(client.request(method, path, **kw), timeout=30)
+            )
+        finally:
+            runner.run(client.aclose())
+            runner.run(asyncio.wait_for(lifespan.__aexit__(None, None, None), timeout=10))
+        assert db.ACTIVE_BACKEND == "uninitialized"
+        assert db._sessionmaker is None
+
+
+def test_startup_root_static_openapi_and_health(api):
+    root = api("GET", "/")
+    assert root.status_code == 200
+    assert "text/html" in root.headers["content-type"]
+    assert "no-cache" in root.headers["cache-control"]
+    asset = api("GET", "/static/mcp_server.py")
+    assert asset.status_code == 200 and 'FastMCP("Brahma")' in asset.text
+    assert api("GET", "/static/missing-brahma-file").status_code == 404
+    schema = api("GET", "/openapi.json").json()
+    assert schema["info"]["title"] == "Brahma API"
+    assert "/api/v1/supplier/investigate" in schema["paths"]
+    health = api("GET", "/api/v1/health")
+    assert health.status_code == 200
+    assert health.json() == {"status": "ok", "database": "sqlite",
+                             "embedding_backend": "hashed", "ofac_names_indexed": 0,
+                             "investigations_stored": 0}
+
+
+def test_root_without_static_index(api, monkeypatch, tmp_path):
+    monkeypatch.setattr(main, "STATIC_DIR", tmp_path)
+    assert api("GET", "/").json() == {"service": "Brahma API", "docs": "/docs"}
+
+
+def test_health_database_failure_is_503_without_sensitive_details(api, monkeypatch):
+    def broken():
+        raise RuntimeError("secret-database-password")
+    monkeypatch.setattr(db, "session_factory", broken)
+    response = api("GET", "/api/v1/health")
+    assert response.status_code == 503
+    assert response.json()["status"] == "unavailable"
+    assert response.json()["investigations_stored"] is None
+    assert "secret-database-password" not in response.text
+
+
+def test_demo_subjects_are_schema_valid_and_explicitly_synthetic(api):
+    subjects = api("GET", "/api/v1/demo/subjects").json()["subjects"]
+    assert subjects
+    assert len({subject["id"] for subject in subjects}) == len(subjects)
+    # Exercise both hand-authored and generated fixtures with the real scorer.
+    for subject in (subjects[0], subjects[-1]):
+        response = api("GET", f"/api/v1/demo/investigate/{subject['id']}")
+        assert response.status_code == 200
+        data = response.json()
+        InvestigationResponse.model_validate(data)
+        assert data["demo"] is True
+        assert "demo dataset" in data["agent_summary"]["generated_by"]
+        assert data["investigation_id"] is None
+        assert 0 <= data["risk"]["score"] <= 100
+    assert api("GET", "/api/v1/demo/investigate/not-a-subject").status_code == 404
+    assert api("GET", "/api/v1/investigations").json()["count"] == 0
+
+
+def test_strategy_sample_workflows_and_keyless_notice(api):
+    samples = api("GET", "/api/v1/strategy/samples").json()["samples"]
+    assert samples
+    for sample in samples:
+        response = api("GET", f"/api/v1/strategy/sample/{sample['id']}")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["verdict"]["decision"] in board.DECISIONS
+        assert len(data["seats"]) == 5
+        assert len(data["board_vote"]) == 4
+        decision = api("POST", "/api/v1/strategy/decide", json={"question": sample["question"]})
+        assert decision.status_code == 200
+        assert decision.json()["sample"] is True
+        assert decision.json()["question"] == sample["question"]
+    assert api("GET", "/api/v1/strategy/sample/missing").status_code == 404
+    notice = api("POST", "/api/v1/strategy/decide", json={"question": "Should Acme buy Globex?"}).json()
+    assert notice["available"] is False and notice["generated_by"] == "unavailable"
+
+
+@pytest.mark.parametrize("path,payload", [
+    ("supplier/investigate", {"name": "  "}),
+    ("supplier/investigate", {"name": "x"}),
+    ("supplier/investigate", {"name": "Acme", "entity_type": "invalid"}),
+    ("supplier/investigate", {"name": "x" * 401}),
+    ("strategy/decide", {"question": "      "}),
+    ("strategy/decide", {"question": "x" * 401}),
+])
+def test_invalid_requests_fail_before_pipeline(api, path, payload):
+    assert api("POST", f"/api/v1/{path}", json=payload).status_code == 422
+
+
+def test_live_pipeline_offline_failures_do_not_become_verified(api, monkeypatch):
+    for source in (pipeline.sec, pipeline.gleif, pipeline.gdelt):
+        monkeypatch.setattr(source, "fetch_json", AsyncMock(return_value=None))
+    monkeypatch.setattr(pipeline.sec, "_ticker_cache", None)
+    monkeypatch.setattr(pipeline.courtlistener, "search", AsyncMock(return_value={
+        "available": False, "cases": [], "note": "offline fixture"}))
+    monkeypatch.setattr(ofac, "screen", AsyncMock(return_value={
+        "match": False, "confidence": 0.0, "matched_entity": None,
+        "source": "OFAC", "list_size": 0}))
+    response = api("POST", "/api/v1/supplier/investigate", json={
+        "name": " Unverified Fixture Ltd ", "website": "http://169.254.169.254/latest/meta-data/"})
+    assert response.status_code == 200
+    result = response.json()
+    InvestigationResponse.model_validate(result)
+    assert result["query"]["name"] == "Unverified Fixture Ltd"
+    assert not any(result["sources_consulted"].values())
+    assert result["supplier"]["verified"] is False
+    assert result["supplier"]["status"] == "unverified"
+    assert result["sanctions"]["list_size"] == 0
+    assert "unavailable" in result["agent_summary"]["sanctions_assessment"]
+    assert "unavailable" in result["agent_summary"]["adverse_media_assessment"]
+    assert "no match" not in result["evidence"][0]["description"]
+    assert result["investigation_id"] is not None
+    stored = api("GET", f"/api/v1/investigations/{result['investigation_id']}")
+    assert stored.json() == result
+    assert api("GET", "/api/v1/investigations").json()["count"] == 1
+    assert api("GET", f"/api/v1/crew/trace/{result['investigation_id']}").status_code == 200
+    monkeypatch.setattr(pipeline, "generate_report", AsyncMock(return_value={
+        "recommendation": "Standard onboarding may proceed."}))
+    guarded = api("POST", "/api/v1/supplier/investigate", json={"name": "LLM Fixture"}).json()
+    assert guarded["risk"]["coverage_assessment"]["complete"] is False
+    assert guarded["agent_summary"]["recommendation"] == guarded["agent_summary"]["rule_based_recommendation"]
+    assert "Standard onboarding may proceed" not in guarded["agent_summary"]["recommendation"]
+
+
+def test_error_and_not_found_contracts(api, monkeypatch):
+    monkeypatch.setattr(v1, "investigate", AsyncMock(side_effect=RuntimeError("private-token")))
+    failed = api("POST", "/api/v1/supplier/investigate", json={"name": "Acme"})
+    assert failed.status_code == 500
+    assert failed.json() == {"detail": "investigation failed"}
+    for path in ("investigations/999", "crew/trace/999"):
+        assert api("GET", f"/api/v1/{path}").status_code == 404
+    assert api("GET", "/api/v1/investigations?limit=0").status_code == 422
+    assert api("GET", "/api/v1/risk-categories").json()["categories"]
+    assert len(api("GET", "/api/v1/crew/roster").json()["agents"]) == 10
+
+
+def test_forced_ofac_refresh_failure_is_not_success(api, monkeypatch):
+    monkeypatch.setattr(ofac, "ingest", AsyncMock(side_effect=RuntimeError("offline")))
+    response = api("POST", "/api/v1/admin/ofac/refresh")
+    assert response.status_code == 503
+    assert response.json() == {"detail": "OFAC refresh failed"}
+    monkeypatch.setattr(ofac, "ingest", AsyncMock(return_value=12))
+    assert api("POST", "/api/v1/admin/ofac/refresh").json() == {"indexed_names": 12}
+
+
+def test_lifespan_waits_for_background_cancellation_on_exception(monkeypatch):
+    events = []
+    async def warm():
+        try:
+            await asyncio.Event().wait()
+        finally:
+            events.append("cancelled")
+    async def close_http():
+        events.append("http")
+    async def close_db():
+        events.append("database")
+    monkeypatch.setattr(main, "init_db", AsyncMock())
+    monkeypatch.setattr(main, "_warm_ofac", warm)
+    monkeypatch.setattr(main, "close_client", close_http)
+    monkeypatch.setattr(main, "close_db", close_db)
+    async def exercise():
+        with pytest.raises(RuntimeError, match="exercise"):
+            async with main.lifespan(main.app):
+                await asyncio.sleep(0)
+                raise RuntimeError("exercise")
+    asyncio.run(exercise())
+    assert events == ["cancelled", "http", "database"]

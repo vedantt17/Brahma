@@ -188,10 +188,23 @@ def evaluate(
     score = max(0, min(100, raw))
     level = _level(score)
 
+    # Completeness is separate from adverse-event severity. Keep scoring rules
+    # unchanged, but never treat an unavailable screen as onboarding clearance.
+    required_sources = ("ofac", "gdelt", "courtlistener")
+    coverage = {name: bool(sources_consulted.get(name)) for name in required_sources}
+    coverage["ofac"] = coverage["ofac"] and bool(sanctions.get("list_size"))
+    coverage["courtlistener"] = coverage["courtlistener"] and bool(litigation.get("available"))
+    missing_sources = [name for name in required_sources if not coverage[name]]
+
     risk = {
         "score": score,
         "raw_score": raw,
         "level": level,
+        "coverage_assessment": {
+            "complete": not missing_sources,
+            "required_sources": list(required_sources),
+            "missing_sources": missing_sources,
+        },
         "reasons": [s.description for s in signals],
         "contributions": [
             {
@@ -214,6 +227,13 @@ def evaluate(
 
 
 def recommendation(risk: dict) -> str:
+    coverage = risk.get("coverage_assessment") or {}
+    if coverage.get("complete") is False and risk["level"] not in ("critical", "high"):
+        missing = ", ".join(coverage.get("missing_sources", []))
+        return (
+            "Onboarding on hold pending required screening coverage "
+            f"({missing}); complete screening or obtain compliance review."
+        )
     return {
         "critical": "Do not onboard. Escalate to compliance immediately.",
         "high": "Block pending enhanced due diligence and compliance sign-off.",

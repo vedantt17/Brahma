@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import logging
+from copy import deepcopy
 
 from app.agent.investigator import _get_client
 from app.config import settings
@@ -228,7 +229,13 @@ def list_samples() -> list[dict]:
 
 def get_sample(sample_id: str) -> dict:
     """Full curated decision for a sample id. Raises KeyError if unknown."""
-    return _decorate(dict(_samples.SAMPLES[sample_id]))
+    decision = _decorate(deepcopy(_samples.SAMPLES[sample_id]))
+    decision["sample"] = True
+    decision["generated_by"] = "mission archive (illustrative sample)"
+    decision["evidence_audit"].update(
+        verification_mode="illustrative_sample", independently_verified=False
+    )
+    return decision
 
 
 def _decorate(decision: dict) -> dict:
@@ -270,12 +277,14 @@ async def decide(question: str) -> dict:
     sample, then a structured keyless notice.
     """
     question = (question or "").strip()
+    failures = []
 
     if settings.openrouter_api_key:
         try:
             decision = await _decide_openrouter(question)
         except Exception as exc:  # noqa: BLE001 - never 500 the endpoint on the LLM
             log.warning("strategy board (OpenRouter) generation failed: %s", exc)
+            failures.append("OpenRouter generation failed")
         else:
             return decision
 
@@ -285,14 +294,21 @@ async def decide(question: str) -> dict:
             return await _decide_claude(question, client)
         except Exception as exc:  # noqa: BLE001
             log.warning("strategy board (Claude) generation failed: %s", exc)
+            failures.append("Claude generation failed")
 
     match = _samples.match(question)
     if match is not None:
         out = get_sample(match)
-        out["generated_by"] = "mission archive (no live LLM key configured)"
-        out["question"] = question or out["question"]
+        out["generated_by"] = (
+            "mission archive (live generation failed)" if failures
+            else "mission archive (no live LLM key configured)"
+        )
+        out["requested_question"] = question
+        out["sample"] = True
+        if failures:
+            out["error"] = "; ".join(failures)
         return out
-    return _keyless_notice(question)
+    return _keyless_notice(question, error="; ".join(failures) or None)
 
 
 async def _decide_claude(question: str, client) -> dict:
@@ -324,6 +340,9 @@ async def _decide_claude(question: str, client) -> dict:
 
     decision["question"] = question
     decision["generated_by"] = settings.claude_model
+    decision.setdefault("evidence_audit", {}).update(
+        verification_mode="model_self_assessment", independently_verified=False
+    )
     decision["usage"] = {
         "input_tokens": response.usage.input_tokens,
         "output_tokens": response.usage.output_tokens,
@@ -368,8 +387,7 @@ async def _call_openrouter_chat(system: str, user: str) -> dict:
         headers={
             "Authorization": f"Bearer {settings.openrouter_api_key}",
             "Content-Type": "application/json",
-            "HTTP-Referer": "https://supplier-intelligence-api-1062146216736.us-central1.run.app",
-            "X-Title": "Supplier Intelligence API - Strategy Board",
+            "X-Title": "Brahma - Strategy Board",
         },
         json={
             "model": settings.openrouter_model,
@@ -526,6 +544,8 @@ def _normalize(question: str, raw: dict) -> dict:
 
     ea = d.get("evidence_audit") if isinstance(d.get("evidence_audit"), dict) else {}
     d["evidence_audit"] = {
+        "verification_mode": "model_self_assessment",
+        "independently_verified": False,
         "verified_pct": _clamp_int(ea.get("verified_pct"), 0, 100, 0),
         "weak_pct": _clamp_int(ea.get("weak_pct"), 0, 100, 0),
         "speculation_pct": _clamp_int(ea.get("speculation_pct"), 0, 100, 0),
@@ -571,6 +591,9 @@ def _keyless_notice(question: str, error: str | None = None) -> dict:
         "available": False,
         "generated_by": "unavailable",
         "notice": (
+            "Live decision generation failed; no live verdict is available. "
+            "The archived missions remain available."
+            if error else
             "The live decision board needs an LLM key (OPENROUTER_API_KEY or "
             "ANTHROPIC_API_KEY). Pick one of the missions below to see the full "
             "board, or set a key to run this question live."
