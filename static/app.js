@@ -583,7 +583,7 @@ function renderDashboard(){
   $("rTab").textContent=s.name;
   $("caseMeta").innerHTML=`<span class="case-meta-item">${esc(s.country||"Country not reported")}</span>
     <span class="case-meta-item">${esc(s.entity_type||"Type not reported")}</span>
-    <span class="case-meta-item">Identity: ${esc(s.status||"Not resolved")}</span>
+    <span class="case-meta-item">Registry identity: ${esc(s.status||"Not resolved")}</span>
     <span class="case-mode">${esc(provenance(d,DATA_ORIGIN))}</span>`;
   if(!sample&&d.query?.name&&d.query.name!==s.name){
     $("caseMeta").innerHTML+=`<span class="case-meta-item">Searched as ${esc(d.query.name)} · ${esc(s.primary_source||"Source")} legal name shown</span>`;
@@ -594,10 +594,10 @@ function renderDashboard(){
       <div><strong class="risk-score-number">${num(evidenceScore(r.score,100))}</strong><span class="risk-score-denom">/100</span>
       <span class="badge b-${level}">${esc(String(r.level||"unknown").toUpperCase())}</span></div></div>
     <dl class="risk-facts">
-      <div><dt>Identity</dt><dd>${esc(s.status||"Not resolved")} &middot; ${fixed(s.identity_confidence)}</dd></div>
+      <div><dt>Identity</dt><dd>${esc(s.status||"Not resolved")} &middot; ${fixed(s.identity_confidence)}<small class="dim"> Registry match score; not a screening clearance</small></dd></div>
       <div><dt>Sanctions</dt><dd>${d.sanctions.match?"MATCH":sanctionsAvailable?"No match":"Unavailable / not screened"}</dd></div>
       <div><dt>Adverse media</dt><dd>${mediaUnavailable?"Unavailable / not screened":`${num(ms.total??d.adverse_media.length)} articles`}</dd></div>
-      <div><dt>Litigation</dt><dd>${litigationUnavailable?"Unavailable / not screened":`${(d.litigation.cases||[]).length} ${(d.litigation.cases||[]).length===1?"docket":"dockets"}`}</dd></div>
+      <div><dt>Litigation</dt><dd>${litigationUnavailable?"Unavailable / not screened":`${(d.litigation.cases||[]).length} docket ${(d.litigation.cases||[]).length===1?"match":"matches"}${d.litigation.truncated?" (limited)":""}`}</dd></div>
     </dl>
     <div class="risk-recommendation"><strong>Recommendation</strong> <p>${esc(d.agent_summary?.recommendation||"Not provided")}</p>
     ${sample||missing.length||coverage.complete===false||!sanctionsAvailable?`<div class="risk-coverage">
@@ -640,10 +640,10 @@ function renderDashboard(){
       <td class="dim">${esc(c.source)}</td></tr>`).join("")}</table>`:`<div class="empty">No risk signals fired.</div>`;
 
   const cases=d.litigation.cases||[];
-  $("litigation").innerHTML=cases.length?`<table>
+  $("litigation").innerHTML=cases.length?`<p class="dim">${cases.length} unique docket search matches returned${d.litigation.truncated?"; results limited":""}. Name matches require review; they do not establish wrongdoing.${d.litigation.search_query?` Query: ${esc(d.litigation.search_query)}.`:""}</p><table>
     <tr><th>Case</th><th>Court</th><th>Filed</th></tr>
     ${cases.slice(0,10).map(c=>`<tr><td>${externalLink(c.url,esc(c.case))}</td>
-      <td class="dim">${esc(c.court)}</td><td class="dim">${esc(c.date)}</td></tr>`).join("")}</table>`:`<div class="empty">${esc(litigationUnavailable?"Unavailable / not screened. "+(d.litigation.note||""):d.litigation.note||"No matching dockets.")}</div>`;
+      <td class="dim">${esc(c.court)}</td><td class="dim">${esc(c.date)}</td></tr>`).join("")}</table>`:`<div class="empty">${esc(litigationUnavailable?"Unavailable / not screened. "+(d.litigation.note||""):d.litigation.note||(d.litigation.truncated?"No qualifying docket matches among the retrieved results; search results were limited.":"No matching docket titles returned by this limited search."))}</div>`;
 
   $("ownership").innerHTML=d.ownership.length?`<table>
     <tr><th>Name</th><th>Role</th><th>Conf.</th></tr>
@@ -801,11 +801,17 @@ function renderResults(){
   else if(sort==="bias")rows=[...rows].sort((a,b)=>((b.bias||{}).score||0)-((a.bias||{}).score||0));
   else rows=[...rows].sort((a,b)=>b.severity-a.severity);
   const unavailable=DATA.media_summary?.available===false||DATA.sources_consulted?.gdelt===false;
+  const searchMetadata=DATA.media_summary?.search_metadata||{};
+  const searchNames=searchMetadata.search_name?[searchMetadata.search_name]:[];
+  const limitNote=searchMetadata.result_limit_reached?" · Results limited":"";
+  const queryNote=searchNames.length?` · Searched: ${searchNames.join(" / ")}`:"";
   const windowNote=DATA.media_summary?.lookback_months?` · Last ${num(DATA.media_summary.lookback_months)} months`:"";
-  $("mediaCount").textContent=unavailable&&!all.length?"Live media source unavailable":`Showing ${rows.length} of ${all.length} matches${windowNote}`;
+  $("mediaCount").textContent=unavailable&&!all.length?"Live media source unavailable":`Showing ${rows.length} of ${all.length} matches${windowNote}${limitNote}${queryNote}`;
   if(!rows.length){
     const message=all.length?"No articles match the selected filters.":unavailable
       ?"The live news source did not respond. Media coverage is unavailable; this is not a clean screening result."
+      :Number(searchMetadata.raw_count)>0
+      ?`${num(searchMetadata.raw_count)} headlines were retrieved, but none met the entity and risk filters. This limited news search is not a complete media review or a clean risk finding.`
       :"No adverse headlines were returned for this name. This limited news search is not a complete media review or a clean risk finding.";
     $("resultsList").innerHTML=`<tr><td colspan="6" class="empty-cell">${message}</td></tr>`;return;
   }

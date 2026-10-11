@@ -55,6 +55,12 @@ verified identity or a clean screening result.
 The GDELT DOC API covers a recent window of up to three months. The media panel
 distinguishes source failures, searches returning no adverse headlines, and
 articles hidden by selected filters. It is not a complete news archive.
+News queries remove trailing incorporation forms (`Anthropic, PBC` searches
+`Anthropic`) while preserving distinctive business words. Returned news includes
+query and filtering counts. Litigation counts represent deduplicated, bounded
+docket-title matches, not a complete lawsuit count or proof of wrongdoing.
+An explicit LEI binds registry selection; lookalike identifiers and related-party
+records are excluded from the selected company’s evidence.
 
 The existing API routes remain compatible. Primary endpoint:
 

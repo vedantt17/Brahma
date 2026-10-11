@@ -22,6 +22,11 @@ has no supporting evidence, state "No evidence available" for that section.
 Sources marked "mocked": true are placeholders, not evidence. Never cite them
 and never treat them as findings.
 
+Identity confidence is a heuristic registry match score, not a probability or
+screening clearance. Court docket matches are bounded name-search results, not
+a comprehensive lawsuit count or proof of wrongdoing. Respect retrieval limits
+and the media search window in the payload; failed coverage is not a clean result.
+
 Be direct and concise. This output is consumed by an automated procurement
 agent, not a human reader."""
 

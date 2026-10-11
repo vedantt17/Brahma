@@ -1,5 +1,33 @@
 # Brahma build verification
 
+## Company search deep review — October 11, 2026
+
+- Three independent agents diagnosed identity, news and report logic, cross-reviewed
+  proposals, and unanimously selected the integrated fix. Cross-review tightened
+  business-name comparisons, conflicting identifiers and docket deduplication.
+- News queries strip only trailing incorporation forms: `Anthropic, PBC` searches
+  `Anthropic`; distinctive words such as Holdings and International remain.
+  Query syntax is quoted safely. Search metadata records raw, filtered and returned
+  headline counts and retrieval limits, including valid empty results.
+- Supplied LEIs bind identity selection. Identifiers, ownership, transactions and
+  evidence from lookalike entities are excluded; contradictory names require review.
+- CourtListener counts identifiable unique dockets, rejects document IDs as docket
+  IDs, and records returned counts separately from source search hits and limits.
+  Reports qualify registry match scores and docket-title matches; no 24-month
+  media claim remains in the live risk signal.
+- Final suite: **233 tests and 230 subtests passed** in 55.69 seconds.
+  Node syntax and whitespace checks passed. Real API name-only `Anthropic, PBC`
+  request returned HTTP 200 in 22.46 seconds with the correct legal name and LEI,
+  no unrelated CIK, and ten distinct docket matches from 277 source search hits.
+- GDELT and OFAC remained unavailable in that live request. Headline retrieval
+  correctness was tested with controlled upstream responses, not fabricated live
+  results. No provider recovery is claimed.
+- Chromium verified the general workspace at 1440, 1024, 390 and 320px, and
+  rendered the collected live response via intercepted transport at 1440/390px.
+  No page errors or horizontal overflow; report explicitly shows missing sources
+  and limited docket matches. Screenshots: `artifacts/deep-search-1440.png` and
+  `artifacts/deep-search-390.png`.
+
 ## Live identity and media correction — October 11, 2026
 
 - Reproduced a fuzzy `Anthropic` query selecting an Anthropic-related ETF.

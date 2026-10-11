@@ -156,17 +156,19 @@ def _fallback_report(investigation: dict) -> dict:
     cases = litigation.get("cases") or []
     if cases:
         litigation_text = (
-            f"{len(cases)} federal docket(s) name this supplier, including "
-            f"{cases[0]['case']}." + _cite(evidence, "CourtListener")
+            f"{len(cases)} unique docket search match(es) returned, including "
+            f"{cases[0]['case']}. Name matches require review and do not establish wrongdoing." + _cite(evidence, "CourtListener")
         )
     elif litigation.get("available"):
-        litigation_text = "No matching federal dockets found."
+        litigation_text = ("No qualifying docket-title matches returned by this limited search."
+                           + (" Additional results were not retrieved." if litigation.get("truncated") else ""))
     else:
         litigation_text = "No evidence available - litigation source unreachable."
 
     if media:
         media_text = (
-            f"{len(media)} negative article(s) found. Most severe: "
+            f"{len(media)} negative headline(s) found in the last "
+            f"{investigation.get('media_summary', {}).get('lookback_months', 3)} months. Most severe: "
             f"{media[0]['title']}." + _cite(evidence, "GDELT")
         )
     elif not investigation["sources_consulted"].get("gdelt"):

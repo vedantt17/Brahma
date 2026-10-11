@@ -174,6 +174,32 @@ def test_live_pipeline_offline_failures_do_not_become_verified(api, monkeypatch)
     assert "Standard onboarding may proceed" not in guarded["agent_summary"]["recommendation"]
 
 
+@pytest.mark.parametrize("headlines", [[], [{"title": "Anthropic faces copyright lawsuit", "url": "https://example.com/news"}]])
+def test_legal_name_search_metadata_survives_api_and_storage(api, monkeypatch, headlines):
+    from app.resolution.engine import EntityRecord
+
+    monkeypatch.setattr(pipeline.sec, "search", AsyncMock(return_value=[]))
+    monkeypatch.setattr(pipeline.gleif, "search", AsyncMock(return_value=[
+        EntityRecord(source="GLEIF", name="ANTHROPIC, PBC", country="US",
+                     raw={"lei": "984500B6DEB8CEBC4Z70"})]))
+    fetch = AsyncMock(return_value={"articles": headlines})
+    monkeypatch.setattr(pipeline.gdelt, "fetch_json", fetch)
+    monkeypatch.setattr(pipeline.courtlistener, "search", AsyncMock(return_value={
+        "available": True, "cases": [], "note": None}))
+    monkeypatch.setattr(ofac, "screen", AsyncMock(return_value={
+        "match": False, "list_size": 100, "source": "OFAC"}))
+    response = api("POST", "/api/v1/supplier/investigate", json={
+        "name": "Anthropic, PBC", "registration_number": "984500B6DEB8CEBC4Z70"})
+    assert response.status_code == 200
+    result = response.json()
+    assert fetch.call_args.kwargs["params"]["query"].startswith('"Anthropic" (')
+    assert result["media_summary"]["available"] is True
+    assert result["media_summary"]["search_metadata"]["raw_count"] == len(headlines)
+    assert result["media_summary"]["search_metadata"]["search_name"] == "Anthropic"
+    assert len(result["adverse_media"]) == len(headlines)
+    assert api("GET", f"/api/v1/investigations/{result['investigation_id']}").json() == result
+
+
 def test_error_and_not_found_contracts(api, monkeypatch):
     monkeypatch.setattr(v1, "investigate", AsyncMock(side_effect=RuntimeError("private-token")))
     failed = api("POST", "/api/v1/supplier/investigate", json={"name": "Acme"})

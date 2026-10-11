@@ -9,6 +9,7 @@ difference between "no cases" and "we could not look".
 from __future__ import annotations
 
 import logging
+import re
 
 from app.config import settings
 from app.http_client import fetch_json
@@ -35,8 +36,9 @@ def _relevance(text: str, name: str) -> float:
 
 async def search(name: str, limit: int = 10) -> dict:
     """Returns {'available': bool, 'cases': [...], 'note': str|None}."""
+    query_name = re.sub(r'["\\\x00-\x1f]', " ", name).strip()
     params = {
-        "q": f'"{name}"',
+        "q": f'"{query_name}"',
         "type": "r",  # RECAP: federal district and appellate dockets
         "order_by": "score desc",
     }
@@ -55,21 +57,35 @@ async def search(name: str, limit: int = 10) -> dict:
         }
 
     cases: list[dict] = []
+    seen: set[tuple] = set()
+    unidentified = 0
     for item in (data.get("results") or [])[: limit * 3]:
         case_name = item.get("caseName") or item.get("case_name") or ""
         if not case_name:
             continue
-        party_text = " ".join(
-            filter(None, [case_name, item.get("suitNature") or "", item.get("docketNumber") or ""])
-        )
-        relevance = _relevance(party_text, name)
-        if relevance < 0.5:
+        # Suit descriptions and docket numbers do not identify a party.
+        relevance = _relevance(case_name, name)
+        if relevance < 1.0:
             continue
 
-        docket_id = item.get("docket_id") or item.get("id")
+        docket_id = item.get("docket_id")
+        court = item.get("court") or item.get("court_id")
+        docket_number = item.get("docketNumber")
+        if not docket_id and not (court and docket_number):
+            unidentified += 1
+            continue
+        # RECAP search hits can be documents from the same docket. Document
+        # IDs must never be used as docket IDs or counted as separate cases.
+        key = ("id", str(docket_id)) if docket_id else (
+            "number", str(court), str(docket_number))
+        if key in seen:
+            continue
+        seen.add(key)
         cases.append(
             {
                 "case": case_name,
+                "docket_id": docket_id,
+                "match_basis": "case_title_name_match",
                 "court": item.get("court") or item.get("court_id"),
                 "date": item.get("dateFiled") or item.get("dateArgued"),
                 "docket_number": item.get("docketNumber"),
@@ -85,4 +101,15 @@ async def search(name: str, limit: int = 10) -> dict:
         if len(cases) >= limit:
             break
 
-    return {"available": True, "cases": cases, "note": None}
+    source_count = data.get("count")
+    return {
+        "available": True, "cases": cases,
+        "note": None if cases else "No qualifying title matches among retrieved hits; this is a limited search.",
+        "search_query": params["q"], "returned_count": len(cases),
+        "source_result_count": source_count, "limit": limit,
+        "truncated": bool(data.get("next")) or len(cases) >= limit
+        or len(data.get("results") or []) > limit * 3
+        or (isinstance(source_count, int) and source_count > len(data.get("results") or [])),
+        "unidentified_rejected_count": unidentified,
+        "match_basis": "case_title_name_match",
+    }

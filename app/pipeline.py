@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import time
 from typing import Any
 
@@ -103,7 +104,9 @@ async def investigate(
 
     sec_records: list[EntityRecord] = results.get("sec") or []
     gleif_records: list[EntityRecord] = results.get("gleif") or []
-    media: list[dict] = results.get("gdelt") or []
+    media: list[dict] = results.get("gdelt")
+    if media is None:
+        media = []
     litigation: dict = results.get("courtlistener") or {
         "available": False, "cases": [], "note": "not run"
     }
@@ -128,14 +131,28 @@ async def investigate(
         query_website=website,
         query_address=full_address,
     )
-    best = pick_best(resolutions)
+    best = _select_identity(resolutions, registration_number)
+    if best:
+        # Downstream ownership and transactions must use the same selected identity.
+        resolutions = [best] + [r for r in resolutions if r is not best]
     identity_confidence = best.confidence if best else 0.0
     identity_verdict = verdict(identity_confidence)
+    identifier_conflict = bool(best and registration_number and
+                               re.fullmatch(r"[A-Z0-9]{18}[0-9]{2}", registration_number.strip().upper())
+                               and _identity_name_key(name) not in {
+                                   _identity_name_key(best.record.name),
+                                   *(_identity_name_key(alias) for alias in best.record.aliases),
+                               })
+    if identifier_conflict:
+        # The identifier selects a record, but cannot validate a contradictory name.
+        identity_verdict = "unverified"
 
     supplier = _build_supplier(
         name, country, website, best, resolutions, identity_confidence,
         identity_verdict, entity_type,
     )
+    if identifier_conflict:
+        supplier["identity_note"] = "Supplied LEI identifies a registry record whose name differs from the submitted name; review required."
     if registration_number and not supplier["registration_number"]:
         supplier["registration_number"] = registration_number
     if aliases:
@@ -152,14 +169,16 @@ async def investigate(
             log.warning("OFAC re-screen failed: %s", exc)
 
     # ---- 4. Ownership graph, transactions, media aggregation -------------
-    ownership = _build_ownership(resolutions)
-    transactions = _build_transactions(resolutions, supplier["name"])
+    identity_records = _same_identity_records(best, resolutions)
+    ownership = _build_ownership(identity_records)
+    transactions = _build_transactions(identity_records, supplier["name"])
     media_summary = _summarize_media(media)
     media_summary["available"] = consulted["gdelt"]
     media_summary["lookback_months"] = gdelt.search_months()
+    media_summary["search_metadata"] = getattr(media, "search_metadata", None)
 
     # ---- 5. Evidence layer -----------------------------------------------
-    evidence = _build_evidence(resolutions, media, litigation, sanctions)
+    evidence = _build_evidence(identity_records, media, litigation, sanctions)
 
     # ---- 6. Risk signals --------------------------------------------------
     risk, signals = evaluate(
@@ -256,6 +275,33 @@ async def investigate(
 # --------------------------------------------------------------------------
 # Assembly helpers
 # --------------------------------------------------------------------------
+def _select_identity(resolutions: list, registration_number: str | None = None):
+    """An explicit LEI binds identity selection; failed lookup cannot select a lookalike."""
+    identifier = (registration_number or "").strip().upper()
+    if re.fullmatch(r"[A-Z0-9]{18}[0-9]{2}", identifier):
+        return next((r for r in resolutions if r.record.source == "GLEIF"
+                     and (r.record.raw.get("lei") or r.record.source_id or "").upper()
+                     == identifier), None)
+    return pick_best(resolutions)
+
+
+def _identity_name_key(name: str) -> str:
+    # Strip only trailing incorporation forms, preserving distinctive business words.
+    return re.sub(r"[^\w]+", " ", gdelt.search_name(name).casefold()).strip()
+
+
+def _same_identity_records(best, resolutions: list) -> list:
+    if best is None:
+        return []
+    key = _identity_name_key(best.record.name)
+    lei = best.record.raw.get("lei")
+    cik = best.record.raw.get("cik")
+    return [r for r in resolutions if r is best or (
+        r.matched and _identity_name_key(r.record.name) == key
+        and not (lei and r.record.raw.get("lei") and lei != r.record.raw["lei"])
+        and not (cik and r.record.raw.get("cik") and cik != r.record.raw["cik"]))]
+
+
 def _build_supplier(
     name: str,
     country: str | None,
@@ -266,6 +312,7 @@ def _build_supplier(
     status: str,
     entity_type: str = "organization",
 ) -> dict[str, Any]:
+    resolutions = _same_identity_records(best, resolutions)
     lei = next(
         (r.record.raw.get("lei") for r in resolutions
          if r.record.source == "GLEIF" and r.confidence >= 0.6),

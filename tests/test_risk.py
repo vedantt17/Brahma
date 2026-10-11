@@ -157,3 +157,19 @@ def test_ownership_complexity_across_jurisdictions():
 def test_recommendation_covers_every_band():
     for level in ("low", "medium", "high", "critical"):
         assert recommendation({"level": level})
+
+
+def test_news_signal_does_not_claim_unsupported_24_month_window():
+    risk, _ = _evaluate(adverse_media=[
+        {"title": "Example Entity lawsuit", "severity": .6, "confidence": .9, "url": None}
+    ])
+    assert "recent news search" in risk["reasons"][0]
+    assert "24 months" not in risk["reasons"][0]
+
+
+def test_docket_signal_is_search_match_not_confirmed_entity_finding():
+    risk, _ = _evaluate(litigation={"available": True, "cases": [
+        {"case": "Example v. Entity", "confidence": .9, "url": None}
+    ]})
+    assert "docket search match" in risk["reasons"][0]
+    assert "naming the supplier" not in risk["reasons"][0]

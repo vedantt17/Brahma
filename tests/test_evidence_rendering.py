@@ -230,7 +230,7 @@ toggleTerm('other');return {before,after:node('riskbox').innerHTML,
         self.assertEqual(sum(tag == "dt" for tag, _ in markup.elements), 4)
         self.assertIn("Overall risk", result["before"])
         self.assertIn("3 articles", result["before"])
-        self.assertIn("1 docket<", result["before"])
+        self.assertIn("1 docket match<", result["before"])
         self.assertIn("Review required.", result["before"])
         self.assertEqual(result["before"], result["after"])
         self.assertIn("1 of 3", result["count"])
@@ -254,6 +254,27 @@ toggleTerm('other');return {before,after:node('riskbox').innerHTML,
         self.assertIn("not a clearance", result["risk"])
         self.assertNotIn("<IMG", result["risk"])
         self.assertIn("Unavailable / not screened", result["lit"])
+
+    def test_report_qualifies_registry_score_and_limited_docket_matches(self):
+        data = fixture()
+        data["litigation"].update(truncated=True, search_query='"Example Entity"')
+        result = self.run_js("renderDashboard();return {risk:node('riskbox').innerHTML,lit:node('litigation').innerHTML};", data)
+        self.assertIn("Registry match score", result["risk"])
+        self.assertIn("1 docket match (limited)", result["risk"])
+        self.assertIn("unique docket search matches returned", result["lit"])
+        self.assertIn("do not establish wrongdoing", result["lit"])
+
+    def test_media_empty_result_reports_retrieved_but_filtered_headlines(self):
+        data = fixture()
+        data["adverse_media"] = []
+        data["media_summary"].update(total=0, available=True, lookback_months=3,
+            search_metadata={"search_name": "Example Entity", "raw_count": 12, "result_limit_reached": True})
+        result = self.run_js("renderResults();return {html:node('resultsList').innerHTML,count:node('mediaCount').textContent};", data)
+        self.assertIn("12 headlines were retrieved", result["html"])
+        self.assertIn("none met the entity and risk filters", result["html"])
+        self.assertIn("Last 3 months", result["count"])
+        self.assertIn("Searched: Example Entity", result["count"])
+        self.assertIn("Results limited", result["count"])
 
     def test_sample_and_escaped_entity_metadata_are_preserved(self):
         data = fixture()

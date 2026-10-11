@@ -102,7 +102,7 @@ def evaluate(
             Signal(
                 category="litigation",
                 description=(
-                    f"{len(cases)} federal docket(s) naming the supplier, "
+                    f"{len(cases)} unique federal docket search match(es), "
                     f"including {top[0]['case']}"
                 ),
                 severity=WEIGHT_LITIGATION,
@@ -135,8 +135,8 @@ def evaluate(
             Signal(
                 category="adverse_media",
                 description=(
-                    f"{len(adverse_media)} negative article(s) in the last "
-                    f"24 months; most severe: {adverse_media[0]['title'][:140]}"
+                    f"{len(adverse_media)} negative headline(s) returned by the recent "
+                    f"news search; most severe: {adverse_media[0]['title'][:140]}"
                 ),
                 severity=severity,
                 source="GDELT",

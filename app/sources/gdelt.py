@@ -21,6 +21,34 @@ log = logging.getLogger(__name__)
 
 DOC_API = "https://api.gdeltproject.org/api/v2/doc/doc"
 
+# Strip trailing incorporation forms only. Business words such as Holdings
+# and International distinguish entities and must remain in the news query.
+_LEGAL_END = re.compile(
+    r"(?:[\s,]+)(?:p\.?b\.?c\.?|i\.?n\.?c\.?|incorporated|"
+    r"l\.?l\.?c\.?|l\.?l\.?p\.?|ltd\.?|limited|corp\.?|corporation|"
+    r"plc\.?|gmbh|sarl|pty\.?|pte\.?)(?:[\s,.]*)$", re.I
+)
+
+
+class MediaResults(list):
+    """Articles plus bounded-search provenance; retains the list API."""
+
+    def __init__(self, articles: list[dict], search_metadata: dict):
+        super().__init__(articles)
+        self.search_metadata = search_metadata
+
+
+def search_name(name: str) -> str:
+    value = re.sub(r"\s+", " ", name).strip()
+    while True:
+        trimmed = _LEGAL_END.sub("", value).strip(" ,.")
+        if not trimmed or trimmed == value:
+            break
+        value = trimmed
+    # Quotes/backslashes/control characters cannot escape our phrase and add
+    # GDELT query operators. Punctuation elsewhere in a business name remains.
+    return re.sub(r"\s+", " ", re.sub(r'["\\\x00-\x1f]', " ", value)).strip()
+
 
 def search_months() -> int:
     """The DOC API searches its recent three-month index, not a full archive."""
@@ -50,7 +78,10 @@ def _build_query(name: str) -> str:
     risk = " OR ".join(
         f'"{term}"' if " " in term else term for term in SEARCH_TERMS
     )
-    return f'"{name}" ({risk})'
+    subject = search_name(name)
+    if not subject or not name_tokens(subject):
+        raise ValueError("A company or person name is required for media search")
+    return f'"{subject}" ({risk})'
 
 
 def _mentions_company(title: str, name: str) -> float:
@@ -140,4 +171,13 @@ async def search(name: str, max_records: int = 75) -> list[dict]:
         )
 
     results.sort(key=lambda a: (a["severity"], a["confidence"]), reverse=True)
-    return results[:40]
+    return MediaResults(results[:40], {
+        "search_name": search_name(name),
+        "query": params["query"],
+        "lookback_months": search_months(),
+        "raw_count": len(data["articles"]),
+        "matched_count": len(results),
+        "returned_count": min(len(results), 40),
+        "max_records": max_records,
+        "result_limit_reached": len(data["articles"]) >= max_records or len(results) > 40,
+    })
