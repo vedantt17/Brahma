@@ -1,5 +1,22 @@
 # Brahma build verification
 
+## Name-only subject selection correction — October 11, 2026
+
+- User reproduced `Anthropic` being renamed to an ETF with an unverified 0.53
+  score. Previous verification covered the legal-name and LEI paths but missed
+  this plain brand-name path.
+- GLEIF now searches its legal-name field rather than broad full-text relevance.
+  Direct live legal-name lookup returned the actual company before related funds.
+- Name-only selection requires an accepted resolution and a matching business
+  name or registry alias after trailing legal-form removal. Rejected/partial
+  lookalikes remain candidates and cannot rename the report subject.
+- Real API request containing only `{"name":"Anthropic"}` returned HTTP 200
+  in 21.75 seconds, `ANTHROPIC, PBC`, correct LEI `984500B6DEB8CEBC4Z70`,
+  registry score 0.8553 and no unrelated CIK. GDELT/OFAC remained unavailable.
+- Full suite after selection changes: 234 tests and 230 subtests passed.
+  Additional API regression verifies an ETF-only response retains the unresolved
+  requested subject; targeted API/identity/lookup suite passed separately.
+
 ## Company search deep review — October 11, 2026
 
 - Three independent agents diagnosed identity, news and report logic, cross-reviewed

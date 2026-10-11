@@ -22,7 +22,7 @@ from app.agent import generate_report
 from app.config import settings
 from app.db import session_factory
 from app.models import Company, Document, Investigation, Person, Relationship, RiskSignal
-from app.resolution import EntityRecord, pick_best, resolve, verdict
+from app.resolution import EntityRecord, resolve, verdict
 from app.resolution.embeddings import active_backend
 from app.resolution.normalize import normalize_domain, normalize_name
 from app.risk import evaluate, recommendation
@@ -131,7 +131,7 @@ async def investigate(
         query_website=website,
         query_address=full_address,
     )
-    best = _select_identity(resolutions, registration_number)
+    best = _select_identity(resolutions, registration_number, name)
     if best:
         # Downstream ownership and transactions must use the same selected identity.
         resolutions = [best] + [r for r in resolutions if r is not best]
@@ -228,7 +228,7 @@ async def investigate(
                     "confidence_breakdown": r.breakdown,
                     "explanation": r.explanation,
                 }
-                for r in resolutions[1:6]
+                for r in [candidate for candidate in resolutions if candidate is not best][:5]
             ],
         },
         "ownership": ownership,
@@ -275,14 +275,20 @@ async def investigate(
 # --------------------------------------------------------------------------
 # Assembly helpers
 # --------------------------------------------------------------------------
-def _select_identity(resolutions: list, registration_number: str | None = None):
+def _select_identity(resolutions: list, registration_number: str | None = None,
+                     query_name: str | None = None):
     """An explicit LEI binds identity selection; failed lookup cannot select a lookalike."""
     identifier = (registration_number or "").strip().upper()
     if re.fullmatch(r"[A-Z0-9]{18}[0-9]{2}", identifier):
         return next((r for r in resolutions if r.record.source == "GLEIF"
                      and (r.record.raw.get("lei") or r.record.source_id or "").upper()
                      == identifier), None)
-    return pick_best(resolutions)
+    # Rejected candidates remain alternatives, never the report's subject.
+    # A partial business-name match (e.g. a fund named after the company)
+    # cannot establish identity from name similarity alone.
+    return next((r for r in resolutions if r.matched and query_name and
+                 any(_identity_name_key(n) == _identity_name_key(query_name)
+                     for n in [r.record.name, *r.record.aliases])), None)
 
 
 def _identity_name_key(name: str) -> str:

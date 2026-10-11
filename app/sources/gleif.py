@@ -62,7 +62,9 @@ async def search(
         if isinstance(data, dict) and isinstance(data.get("data"), dict):
             data = {**data, "data": [data["data"]]}
     else:
-        params = {"filter[fulltext]": name, "page[size]": str(limit)}
+        # Full-text relevance can rank funds mentioning a company ahead of
+        # the company itself. Search the legal-name field instead.
+        params = {"filter[entity.legalName]": name, "page[size]": str(limit)}
         data = await fetch_json(SEARCH_URL, params=params, ttl_hours=24)
     if not isinstance(data, dict) or not isinstance(data.get("data"), list):
         raise RuntimeError("GLEIF search unavailable or malformed")

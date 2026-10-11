@@ -200,6 +200,26 @@ def test_legal_name_search_metadata_survives_api_and_storage(api, monkeypatch, h
     assert api("GET", f"/api/v1/investigations/{result['investigation_id']}").json() == result
 
 
+def test_rejected_registry_lookalike_does_not_replace_requested_subject(api, monkeypatch):
+    from app.resolution.engine import EntityRecord
+
+    monkeypatch.setattr(pipeline.sec, "search", AsyncMock(return_value=[]))
+    monkeypatch.setattr(pipeline.gleif, "search", AsyncMock(return_value=[
+        EntityRecord(source="GLEIF", name="Anthropic AI Lab Ecosystem ETF",
+                     raw={"lei": "LOOKALIKE"})]))
+    monkeypatch.setattr(pipeline.gdelt, "search", AsyncMock(return_value=[]))
+    monkeypatch.setattr(pipeline.courtlistener, "search", AsyncMock(return_value={
+        "available": True, "cases": [], "note": None}))
+    monkeypatch.setattr(ofac, "screen", AsyncMock(return_value={"match": False, "list_size": 100}))
+    response = api("POST", "/api/v1/supplier/investigate", json={"name": "Anthropic"})
+    result = response.json()
+    assert response.status_code == 200
+    assert result["supplier"]["name"] == "Anthropic"
+    assert result["supplier"]["verified"] is False
+    assert result["supplier"]["lei"] is None
+    assert result["entity_resolution"]["selected"] is None
+
+
 def test_error_and_not_found_contracts(api, monkeypatch):
     monkeypatch.setattr(v1, "investigate", AsyncMock(side_effect=RuntimeError("private-token")))
     failed = api("POST", "/api/v1/supplier/investigate", json={"name": "Acme"})

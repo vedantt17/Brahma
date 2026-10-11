@@ -34,7 +34,7 @@ def test_non_lei_registration_keeps_name_search(monkeypatch):
     monkeypatch.setattr(gleif, "fetch_json", fetch)
     assert asyncio.run(gleif.search("Anthropic", registration_number="ABC-123")) == []
     fetch.assert_awaited_once_with(gleif.SEARCH_URL,
-        params={"filter[fulltext]": "Anthropic", "page[size]": "8"}, ttl_hours=24)
+        params={"filter[entity.legalName]": "Anthropic", "page[size]": "8"}, ttl_hours=24)
 
 
 def test_failed_exact_lookup_is_not_reported_as_success(monkeypatch):

@@ -19,6 +19,15 @@ def test_supplied_lei_anchors_selection_even_if_lookalike_scores_higher():
     assert _select_identity([etf], LEI) is None
 
 
+def test_name_only_never_selects_an_etf_or_rejected_candidate():
+    etf = result("Anthropic AI Lab Ecosystem ETF", "GLEIF", .53)
+    assert _select_identity([etf], query_name="Anthropic") is None
+    company = result("ANTHROPIC, PBC", "GLEIF", .93, lei=LEI)
+    assert _select_identity([etf, company], query_name="Anthropic") is company
+    etf.matched = True
+    assert _select_identity([etf], query_name="Anthropic") is None
+
+
 def test_supplier_identifiers_never_merge_from_lookalike():
     company = result("ANTHROPIC, PBC", "GLEIF", .93, lei=LEI, registered_as="company-id")
     etf = result("Anthropic AI Lab Ecosystem ETF", "SEC", .85, cik="999")
