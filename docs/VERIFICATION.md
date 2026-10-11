@@ -1,5 +1,25 @@
 # Brahma build verification
 
+## Sanctions download network diagnosis — October 11, 2026
+
+- Official SDN and ALT export endpoints both responded HTTP 302 and redirected
+  to `wc2h-sls-prod-public-published.s3.us-gov-west-1.amazonaws.com`.
+  The redirected connection was blocked by the cloud proxy with HTTP 403.
+  Health reported zero indexed OFAC names, so unavailable coverage was correct.
+- Added the exact official download hostname to the environment network draft,
+  preserving existing news/source domains. Draft save does not establish runtime
+  application or publication. Documented refresh and readiness checks in README.
+- A subsequent live redirected download succeeded (HTTP 200, 5,727,333 bytes).
+  The real refresh endpoint returned HTTP 200 in 11.33 seconds and indexed
+  39,598 SDN/alias names; health confirmed the same count.
+- Fresh name-only Anthropic investigation returned HTTP 200 in 12.06 seconds,
+  correct legal name/LEI, OFAC available with no SDN name match, 40 news
+  headlines, and no missing required coverage. GDELT remains unavailable;
+  Google News provides news coverage. This is a limited OFAC/name-based
+  screening result, not a claim of every jurisdiction's sanctions coverage.
+- Updated reusable startup instructions with the required download domain and
+  tested refresh/health checks. No application code changed for this network fix.
+
 ## Live news recovery — October 11, 2026
 
 - GDELT returned HTTP 503 upstream connection timeouts. Added a bounded,

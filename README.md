@@ -52,6 +52,10 @@ cloud environment, allow `api.gleif.org`, `api.gdeltproject.org`, `www.sec.gov`,
 `sanctionslistservice.ofac.treas.gov`, and `www.treasury.gov`. SEC also requires
 a real contact User-Agent. An unavailable source is a coverage gap, not a
 verified identity or a clean screening result.
+Treasury's SDN and alias exports redirect to
+`wc2h-sls-prod-public-published.s3.us-gov-west-1.amazonaws.com`; allow that exact
+download host as well. After network access is applied, refresh the list with
+`POST /api/v1/admin/ofac/refresh` and check `ofac_names_indexed` in health.
 The GDELT DOC API covers a recent window of up to three months. If GDELT fails
 or returns no headlines, the app tries public Google News RSS (`news.google.com`)
 within a bounded timeout. Allow that domain for the fallback. Provider status
