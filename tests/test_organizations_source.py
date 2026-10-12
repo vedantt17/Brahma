@@ -43,3 +43,4 @@ def test_public_profile_extracts_sourced_ceo_and_ignores_product_hits(monkeypatc
     assert record.raw["officers"][0]["source_url"].endswith("#P169")
     assert record.raw["officers"][1]["role"] == "Former chief executive officer"
     assert fetch.await_count == 3
+    assert fetch.await_args_list[-1].kwargs["params"]["props"] == "labels"
