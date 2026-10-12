@@ -14,6 +14,38 @@ It is designed for third-party risk research and due diligence workflows, and fo
 4. **Review evidence and relationships.** Inspect the source, date, link, match context, and relationship evidence behind a result. Identity candidates are kept distinct from company affiliations and other sourced connections.
 5. **Decide what to investigate next.** Risk signals and recommendations summarize the available evidence. They are heuristic prompts for review, not a verdict or a probability that a subject is risky.
 
+The identity lookup and the common screening searches run in parallel. This lets Brahma return useful evidence even if one provider is slow, while keeping unresolved names and unavailable sources visible in the report.
+
+```mermaid
+flowchart TD
+    A[Enter a company or person and any known details] --> B{Subject type?}
+
+    B -->|Company| C[Find legal and public organization candidates<br/>GLEIF · SEC EDGAR · Wikidata]
+    B -->|Person| D[Find public human profiles<br/>Wikidata]
+    C --> E[Resolve identity and score candidates]
+    D --> E
+
+    A --> F[Search public sources by name in parallel]
+    F --> G[Sanctions<br/>OFAC]
+    F --> H[Adverse media<br/>GDELT with Google News fallback]
+    F --> I[Recent headlines<br/>Google News RSS]
+    F --> J[Court dockets<br/>CourtListener]
+
+    E --> K{One identity sufficiently supported?}
+    K -->|Yes| L[Enrich the selected record<br/>with available filings, ownership, and sourced relationships]
+    K -->|No or ambiguous| M[Show candidates and keep name-based hits provisional<br/>Skip selected-record enrichment]
+
+    G --> N[Combine results, evidence links, and source availability]
+    H --> N
+    I --> N
+    J --> N
+    L --> N
+    M --> N
+    N --> O[Calculate heuristic risk signals and prepare summary]
+    O --> P[Evidence report and relationship network]
+    P --> Q[Analyst reviews identity, evidence, and coverage gaps]
+```
+
 ## What’s in the workspace
 
 - **Investigate:** start company or person searches, add identity details, and open curated examples. Curated cases are clearly labeled as samples and are not live screening.
