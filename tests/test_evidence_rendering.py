@@ -147,6 +147,18 @@ return {country:node('f_country').value,registration:node('f_reg').value};
         self.assertIn("No adverse headlines were returned", html)
         self.assertNotIn("selected filters", html)
 
+    def test_live_report_rejects_older_api_process_instead_of_showing_stale_results(self):
+        data = fixture()
+        data["risk"]["coverage_assessment"]["required_sources"] = ["ofac", "gdelt", "courtlistener"]
+        result = self.run_js("""
+let oldError='';try{validateLiveInvestigation(fixture);}catch(error){oldError=error.message;}
+fixture.recent_news=[];fixture.recent_news_summary={available:true};
+fixture.risk.coverage_assessment.required_sources=['ofac','news','courtlistener'];
+return {oldError,accepted:validateLiveInvestigation(fixture)===fixture};
+""", data)
+        self.assertIn("older Brahma server process", result["oldError"])
+        self.assertTrue(result["accepted"])
+
     def test_lei_in_aliases_moves_to_registration_without_losing_names(self):
         result = self.run_js("""
 TYPE='organization';node('f_reg').value='';

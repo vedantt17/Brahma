@@ -49,6 +49,14 @@ function validateInvestigation(d){
     throw new Error("The service returned an incomplete investigation. Please retry; the previous report has been kept.");
   return d;
 }
+function validateLiveInvestigation(d){
+  validateInvestigation(d);
+  const required=d.risk?.coverage_assessment?.required_sources;
+  if(!Array.isArray(d.recent_news)||!d.recent_news_summary||
+    !Array.isArray(required)||!required.includes("news")||required.includes("gdelt"))
+    throw new Error("This page is connected to an older Brahma server process. Restart the server to load the updated person and news search. The previous report has been kept.");
+  return d;
+}
 function validateStrategy(d){
   if(d.available!==false&&(!d.verdict||!Array.isArray(d.seats)))throw new Error("The service returned an incomplete strategy report. Please retry.");
   return d;
@@ -71,7 +79,10 @@ async function checkHealth(){
   const ticket=beginRequest("health");
   try{
     const d=await requestJSON(ticket,"/api/v1/health",{},15000);
-    if(isCurrent(ticket))SERVICE_STATUS=d.status==="ok"?"Service ready":"Service unavailable";
+    if(isCurrent(ticket)){
+      SERVICE_STATUS=d.status!=="ok"?"Service unavailable":Number(d.api_contract_version)<2||d.api_contract_version==null?"Server update required":"Service ready";
+      if(SERVICE_STATUS==="Server update required")status("status","The page is connected to an older Brahma server process. Restart the server to load updated person and news searches.",true);
+    }
   }catch{if(isCurrent(ticket))SERVICE_STATUS="Service unavailable";}
   finally{if(isCurrent(ticket))updateWorkspace();finishRequest(ticket);}
 }
@@ -252,7 +263,7 @@ async function runInvestigation(){
     status("status",seconds<60?`Checking live sources… ${seconds}s elapsed. Some sources can take about a minute.`:`Waiting for the report… ${seconds}s elapsed. You can cancel and retry.`);
   },1000);
   try{
-    const data=validateInvestigation(await requestJSON(ticket,"/api/v1/supplier/investigate",{method:"POST",
+    const data=validateLiveInvestigation(await requestJSON(ticket,"/api/v1/supplier/investigate",{method:"POST",
       headers:{"Content-Type":"application/json"},
       body:JSON.stringify({name,entity_type:TYPE,
         country:$("f_country").value.trim()||null,city:$("f_city").value.trim()||null,
@@ -268,7 +279,7 @@ async function runInvestigation(){
     if(!Object.values(data.sources_consulted||{}).some(Boolean)){
       status("evidenceStatus","No live sources responded. This report cannot verify the entity or provide a completed risk check. Check access to the data sources, then retry.",true);
     }
-  }catch(e){if(isCurrent(ticket))status("status",e.message,true);}
+  }catch(e){if(isCurrent(ticket)){status("status",e.message,true);status("evidenceStatus",e.message,true);}}
   finally{clearInterval(progress);if(isCurrent(ticket)){$("run").disabled=false;$("cancelInvestigation").hidden=true;}finishRequest(ticket);}
 }
 function afterData(msg){
@@ -1347,7 +1358,7 @@ async function tryApi(){
   const ticket=beginRequest("api");
   out.innerHTML='<span class="c">// calling… (live sources; cold start can take ~30-60s)</span>';
   try{
-    const d=validateInvestigation(await requestJSON(ticket,"/api/v1/supplier/investigate",{method:"POST",
+    const d=validateLiveInvestigation(await requestJSON(ticket,"/api/v1/supplier/investigate",{method:"POST",
       headers:{"Content-Type":"application/json"},body:JSON.stringify({name})}));
     if(!isCurrent(ticket))return;
     const slim={supplier:d.supplier,risk:d.risk,sanctions:{match:d.sanctions.match,list_size:d.sanctions.list_size},

@@ -188,6 +188,7 @@ async def health() -> dict:
         log.exception("health database check failed")
         return JSONResponse(status_code=503, content={
             "status": "unavailable",
+            "api_contract_version": 2,
             "database": database.ACTIVE_BACKEND,
             "embedding_backend": active_backend(),
             "ofac_names_indexed": len(ofac._entries),
@@ -196,6 +197,7 @@ async def health() -> dict:
 
     return {
         "status": "ok",
+        "api_contract_version": 2,
         "database": database.ACTIVE_BACKEND,
         "embedding_backend": active_backend(),
         "ofac_names_indexed": len(ofac._entries),  # noqa: SLF001 - diagnostic

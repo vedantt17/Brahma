@@ -71,7 +71,7 @@ def test_startup_root_static_openapi_and_health(api):
     assert "/api/v1/supplier/investigate" in schema["paths"]
     health = api("GET", "/api/v1/health")
     assert health.status_code == 200
-    assert health.json() == {"status": "ok", "database": "sqlite",
+    assert health.json() == {"status": "ok", "api_contract_version": 2, "database": "sqlite",
                              "embedding_backend": "hashed", "ofac_names_indexed": 0,
                              "investigations_stored": 0}
 

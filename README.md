@@ -17,6 +17,9 @@ python -m venv .venv
 Open http://127.0.0.1:8770. The launcher binds to loopback only and uses a local
 SQLite database at `data/brahma.db` unless `DATABASE_URL` is explicitly set.
 It refuses to take over an occupied port. Logs are under `artifacts/`.
+The Windows launcher watches backend Python files and reloads after code updates.
+If a server was started before this launcher change, restart that process once;
+an already running Python process cannot load updated backend modules on its own.
 
 On other platforms:
 

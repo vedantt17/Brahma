@@ -17,7 +17,7 @@ try {
         $env:DATABASE_URL = "sqlite+aiosqlite:///$db"
     }
     $process = Start-Process -FilePath $python -WorkingDirectory $root -WindowStyle Hidden -PassThru `
-        -ArgumentList @('-m','uvicorn','app.main:app','--host','127.0.0.1','--port',"$Port") `
+        -ArgumentList @('-m','uvicorn','app.main:app','--host','127.0.0.1','--port',"$Port",'--reload','--reload-dir','app') `
         -RedirectStandardOutput (Join-Path $artifacts 'server.stdout.log') `
         -RedirectStandardError (Join-Path $artifacts 'server.stderr.log')
     $process.Id | Set-Content -LiteralPath (Join-Path $root '.brahma-server.pid')
