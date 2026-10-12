@@ -98,7 +98,7 @@ Most features can be explored without paid API keys. Copy `.env.example` to `.en
 | `USER_AGENT` | Identifies the app to SEC EDGAR | Set a real contact address for SEC requests. |
 | `DATABASE_URL` | Selects the database | Local development falls back to SQLite if the default PostgreSQL URL is unavailable. |
 
-Source access also depends on outbound network access. For restricted environments, allow the provider domains described in `.env.example` and the source setup notes in `docs/VERIFICATION.md`.
+Source access also depends on outbound network access. In restricted environments, allow the hosts used by the configured source adapters.
 
 ## Public demo and deployment
 
