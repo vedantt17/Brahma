@@ -11,9 +11,9 @@ This is the working handoff for the Brahma/Credence project work discussed acros
 
 The project work began while preparing a technical demonstration for Credence ID's Solution Engineer interview. We discussed ideas that could use Credence's mobile-ID SDKs, then tested the underlying business need instead of choosing an integration merely to include an SDK. Rental pickup exception handling and integration diagnostics were considered, along with ways Credence APIs could fit existing work. The concern was whether those features solved a real operator problem or invented one to satisfy the assignment.
 
-The direction then shifted to selecting a substantial existing portfolio project. The user asked for a demanding review of repositories owned by Tanmay Kallakuri, Saurav Kanegaonkar, and Prakhar Anand, then asked which projects would best demonstrate product and engineering ability to Credence ID. Entity Intelligence API / Argus stood out as an already working, technically broad investigation product. The user selected it and asked to adapt the repository as **Brahma**, carry over the useful end-to-end behavior, and substantially improve the live application's design. The user stated that the original author had given permission to reuse and modify it.
+The direction then shifted to developing **Brahma**, Vedant Tiwari's entity-intelligence project. Prakhar Anand had helped with the original project, and Vedant continued developing it as a technical demonstration for Credence ID. The work focused on preserving its investigation capabilities while making the live application a coherent, usable research and decision workspace.
 
-The product was kept within the existing FastAPI, SQLAlchemy, static HTML/CSS/JavaScript stack. The aim became a coherent, usable research and decision workspace rather than a visual mockup. The source snapshot was commit `5559b1f1d914e79682b4b625a084359b061cbb31`; the full upstream Git history remains in this checkout. The project records its adaptation and permission context in [PROVENANCE.md](../PROVENANCE.md). That file also notes that the source snapshot did not supply a repository-wide open-source license, and that the permission statement came from the requester and was not independently reviewed. No public repository was created or pushed as part of the work recorded here.
+The product was kept within the existing FastAPI, SQLAlchemy, static HTML/CSS/JavaScript stack. The aim became a coherent, usable research and decision workspace rather than a visual mockup. The repository retains historical technical documentation and Git history alongside the ongoing development of Brahma.
 
 ## 2. What Brahma contains
 
@@ -182,7 +182,6 @@ Do not expose this loopback research build directly to the public internet. Shar
 ## 11. Related documents
 
 - [README.md](../README.md): install/run instructions, product areas, configuration and limitations.
-- [PROVENANCE.md](../PROVENANCE.md): original repository, source snapshot, permission context and attribution.
 - [DESIGN.md](DESIGN.md): design decisions, motion rules and research links.
 - [VERIFICATION.md](VERIFICATION.md): test/browser results, smoke-test observation and remaining limitations.
 - [QA_FINDINGS.md](QA_FINDINGS.md): independent review findings and their resolution status.

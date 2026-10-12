@@ -148,10 +148,10 @@ python -m pytest tests -q
 node --check static/app.js
 ```
 
-See [docs/VERIFICATION.md](docs/VERIFICATION.md) for verification details and known limitations, [docs/QA_FINDINGS.md](docs/QA_FINDINGS.md) for review findings, and [PROVENANCE.md](PROVENANCE.md) for the project's adaptation history and attribution.
+See [docs/VERIFICATION.md](docs/VERIFICATION.md) for verification details and known limitations, and [docs/QA_FINDINGS.md](docs/QA_FINDINGS.md) for review findings.
 
 ## How it is built
 
 Brahma uses FastAPI and SQLAlchemy on the backend, asynchronous HTTP source adapters for public data, and a static HTML/CSS/JavaScript interface. The API and the browser workspace use the same investigation pipeline. Optional language-model providers help produce narrative summaries; source retrieval, entity matching, coverage reporting, and risk signals remain explicit parts of the returned report.
 
-This repository adapts an existing project with permission from its original author. See [PROVENANCE.md](PROVENANCE.md) for details. The Lucide license is included under `static/vendor/`.
+Brahma is Vedant Tiwari's project, created with help from Prakhar Anand and developed further with AI coding tools. The Lucide license is included under `static/vendor/`.

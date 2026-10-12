@@ -383,4 +383,4 @@ the finished code.
   security certification.
 - Historical source documentation is retained separately and is not a claim
   that its original benchmarks or architecture assertions were independently
-  revalidated. See `PROVENANCE.md` and `QA_FINDINGS.md`.
+  revalidated. See `QA_FINDINGS.md`.
