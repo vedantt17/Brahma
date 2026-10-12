@@ -12,7 +12,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api import router
-from app.config import PROJECT_ROOT
+from app.config import PROJECT_ROOT, settings
 from app.db import close_db, init_db
 from app.http_client import close_client
 from app.sources import ofac
@@ -70,7 +70,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[] if settings.public_demo else ["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )

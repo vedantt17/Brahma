@@ -39,3 +39,4 @@ node_modules/
 artifacts/
 *.log
 .brahma-server.pid
+.vercel

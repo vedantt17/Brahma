@@ -144,13 +144,21 @@ for the actual checks and limitations of this build.
 
 ## Hosting
 
-`Dockerfile` and `render.yaml` are retained as deployment starting points. This
-edition has not replaced or modified the upstream public demo. A shared deployment
-requires authentication, access control, an appropriately protected admin API,
-database backups, retention policy, rate limits and monitoring. Configure a
-persistent PostgreSQL database and set `ALLOW_SQLITE_FALLBACK=false` in hosted
-environments. Do not expose this local research workspace directly to the public
-internet. No production-readiness claim is made.
+Vercel discovers the root `main.py` FastAPI entrypoint. `vercel.json` includes
+the static interface and gives live source searches a 60-second function budget.
+On Vercel, `PUBLIC_DEMO=true` uses temporary `/tmp` storage for source caching,
+returns reports to the browser without saving them, disables stored-report and
+admin endpoints, and labels the session-only behavior in the form. A public demo
+can be deployed without paid AI keys. External source availability still varies;
+an unavailable source remains a coverage gap. The configured SEC User-Agent
+points to this repository's public issue page for contact.
+
+`Dockerfile` and `render.yaml` remain alternatives for a persistent service.
+Shared production use needs authentication, access control, a protected admin
+API, database backups, retention policy, rate limits and monitoring. Configure
+a persistent PostgreSQL database and set `ALLOW_SQLITE_FALLBACK=false` in that
+setting. The Vercel configuration is a public demo, not a production screening
+service.
 
 ## Architecture and attribution
 

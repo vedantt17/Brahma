@@ -71,7 +71,8 @@ def test_startup_root_static_openapi_and_health(api):
     assert "/api/v1/supplier/investigate" in schema["paths"]
     health = api("GET", "/api/v1/health")
     assert health.status_code == 200
-    assert health.json() == {"status": "ok", "api_contract_version": 2, "database": "sqlite",
+    assert health.json() == {"status": "ok", "api_contract_version": 2,
+                             "public_demo": False, "storage_mode": "persistent", "database": "sqlite",
                              "embedding_backend": "hashed", "ofac_names_indexed": 0,
                              "investigations_stored": 0}
 
@@ -174,6 +175,35 @@ def test_live_pipeline_offline_failures_do_not_become_verified(api, monkeypatch)
     assert guarded["risk"]["coverage_assessment"]["complete"] is False
     assert guarded["agent_summary"]["recommendation"] == guarded["agent_summary"]["rule_based_recommendation"]
     assert "Standard onboarding may proceed" not in guarded["agent_summary"]["recommendation"]
+
+
+def test_public_demo_returns_live_report_without_storing_or_exposing_admin_routes(api, monkeypatch):
+    from app.sources import gdelt
+
+    monkeypatch.setattr(settings, "public_demo", True)
+    monkeypatch.setattr(pipeline.sec, "search", AsyncMock(return_value=[]))
+    monkeypatch.setattr(pipeline.gleif, "search", AsyncMock(return_value=[]))
+    monkeypatch.setattr(pipeline.news, "search", AsyncMock(return_value=gdelt.MediaResults([], {
+        "providers": {"gdelt": False, "google_news": False}})))
+    monkeypatch.setattr(pipeline.news_rss, "search_recent", AsyncMock(return_value=[]))
+    monkeypatch.setattr(pipeline.courtlistener, "search", AsyncMock(return_value={
+        "available": False, "cases": []}))
+    monkeypatch.setattr(ofac, "screen", AsyncMock(return_value={
+        "match": False, "confidence": 0.0, "matched_entity": None,
+        "source": "OFAC", "list_size": 0}))
+    persist = AsyncMock(side_effect=AssertionError("public demo must not save reports"))
+    monkeypatch.setattr(pipeline, "_persist", persist)
+
+    response = api("POST", "/api/v1/supplier/investigate", json={"name": "Demo Search"})
+    assert response.status_code == 200
+    assert response.json()["investigation_id"] is None
+    persist.assert_not_awaited()
+    assert api("GET", "/api/v1/investigations").status_code == 404
+    assert api("GET", "/api/v1/investigations/1").status_code == 404
+    assert api("GET", "/api/v1/crew/trace/1").status_code == 404
+    assert api("POST", "/api/v1/admin/ofac/refresh").status_code == 404
+    health = api("GET", "/api/v1/health").json()
+    assert health["public_demo"] is True and health["storage_mode"] == "ephemeral"
 
 
 @pytest.mark.parametrize("headlines", [[], [{"title": "Anthropic faces copyright lawsuit", "url": "https://example.com/news"}]])

@@ -12,6 +12,7 @@ from app import crew
 from app import db as database
 from app import demo
 from app import strategy
+from app.config import settings
 from app.models import Investigation
 from app.pipeline import investigate
 from app.agent.insight import connection_insight
@@ -58,6 +59,8 @@ async def investigate_supplier(request: InvestigationRequest) -> InvestigationRe
 
 @router.get("/investigations", summary="List recent investigations")
 async def list_investigations(limit: int = Query(20, ge=1, le=100)) -> dict:
+    if settings.public_demo:
+        raise HTTPException(status_code=404, detail="stored reports unavailable in public demo")
     async with database.session_factory()() as session:
         rows = (
             await session.execute(
@@ -84,6 +87,8 @@ async def list_investigations(limit: int = Query(20, ge=1, le=100)) -> dict:
 
 @router.get("/investigations/{investigation_id}", summary="Fetch a stored investigation")
 async def get_investigation(investigation_id: int) -> dict:
+    if settings.public_demo:
+        raise HTTPException(status_code=404, detail="stored reports unavailable in public demo")
     async with database.session_factory()() as session:
         row = await session.get(Investigation, investigation_id)
     if row is None:
@@ -93,6 +98,8 @@ async def get_investigation(investigation_id: int) -> dict:
 
 @router.post("/admin/ofac/refresh", summary="Force a re-download of the OFAC SDN list")
 async def refresh_ofac() -> dict:
+    if settings.public_demo:
+        raise HTTPException(status_code=404, detail="admin endpoint unavailable in public demo")
     try:
         count = await ofac.ingest(force=True)
     except Exception as exc:  # noqa: BLE001
@@ -131,6 +138,8 @@ async def crew_trace(investigation: dict) -> dict:
     summary="Replay the crew against a stored investigation",
 )
 async def crew_trace_stored(investigation_id: int) -> dict:
+    if settings.public_demo:
+        raise HTTPException(status_code=404, detail="stored reports unavailable in public demo")
     async with database.session_factory()() as session:
         row = await session.get(Investigation, investigation_id)
     if row is None:
@@ -189,6 +198,8 @@ async def health() -> dict:
         return JSONResponse(status_code=503, content={
             "status": "unavailable",
             "api_contract_version": 2,
+            "public_demo": settings.public_demo,
+            "storage_mode": "ephemeral" if settings.public_demo else "persistent",
             "database": database.ACTIVE_BACKEND,
             "embedding_backend": active_backend(),
             "ofac_names_indexed": len(ofac._entries),
@@ -198,6 +209,8 @@ async def health() -> dict:
     return {
         "status": "ok",
         "api_contract_version": 2,
+        "public_demo": settings.public_demo,
+        "storage_mode": "ephemeral" if settings.public_demo else "persistent",
         "database": database.ACTIVE_BACKEND,
         "embedding_backend": active_backend(),
         "ofac_names_indexed": len(ofac._entries),  # noqa: SLF001 - diagnostic

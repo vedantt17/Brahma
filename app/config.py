@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
+from tempfile import gettempdir
 
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DATA_DIR = PROJECT_ROOT / "data"
+IS_VERCEL = os.environ.get("VERCEL") == "1"
+# Vercel Functions mount the deployment read-only. Only /tmp is writable and
+# its contents may disappear at any time, so the public demo stores no reports.
+DATA_DIR = Path(gettempdir()) / "brahma" if IS_VERCEL else PROJECT_ROOT / "data"
 
 
 class Settings(BaseSettings):
@@ -19,11 +24,12 @@ class Settings(BaseSettings):
     )
 
     # Database
-    database_url: str = (
-        "postgresql+asyncpg://supplier:supplier@localhost:5432/supplier_intel"
-    )
+    database_url: str = (f"sqlite+aiosqlite:///{(DATA_DIR / 'brahma.db').as_posix()}"
+                         if IS_VERCEL else
+                         "postgresql+asyncpg://supplier:supplier@localhost:5432/supplier_intel")
     allow_sqlite_fallback: bool = True
     sqlite_url: str = f"sqlite+aiosqlite:///{(DATA_DIR / 'supplier_intel.db').as_posix()}"
+    public_demo: bool = IS_VERCEL
 
     # Claude
     anthropic_api_key: str | None = None
@@ -48,7 +54,7 @@ class Settings(BaseSettings):
     http_cache_ttl_hours: int = 24
     ofac_refresh_hours: int = 24
     gdelt_months: int = 24
-    investigation_timeout_seconds: int = 60
+    investigation_timeout_seconds: int = 45 if IS_VERCEL else 60
 
     @field_validator("database_url")
     @classmethod

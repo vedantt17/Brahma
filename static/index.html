@@ -59,7 +59,7 @@
               <div class="full"><label for="f_address">Street address</label><input id="f_address" placeholder="Street address" autocomplete="street-address" maxlength="300"></div>
             </div>
             <div class="form-actions actions"><button class="primary" id="run" onclick="runInvestigation()"><i data-lucide="scan-search" aria-hidden="true"></i>Start investigation<i data-lucide="arrow-right" aria-hidden="true"></i></button><button type="button" class="ghost" id="cancelInvestigation" onclick="cancelInvestigation()" hidden>Cancel</button><span class="status" id="status" role="status" aria-live="polite"></span></div>
-            <p class="privacy-note"><i data-lucide="info" aria-hidden="true"></i>Queries are sent to external data sources and saved in this workspace. Use public information only.</p>
+            <p class="privacy-note"><i data-lucide="info" aria-hidden="true"></i><span id="privacyNoteText">Queries are sent to external data sources. Use public information only.</span></p>
           </section>
         </div>
         <div class="source-strip" aria-label="Supported source adapters"><div class="source-strip-label">SOURCE ADAPTERS<span>Availability reported per investigation</span></div><div class="source-item"><i data-lucide="shield-check" aria-hidden="true"></i><span>OFAC<small>Sanctions</small></span></div><div class="source-item"><i data-lucide="landmark" aria-hidden="true"></i><span>SEC EDGAR<small>Company filings</small></span></div><div class="source-item"><i data-lucide="fingerprint" aria-hidden="true"></i><span>GLEIF<small>Legal entities</small></span></div><div class="source-item"><i data-lucide="newspaper" aria-hidden="true"></i><span>GDELT<small>Media coverage</small></span></div><div class="source-item"><i data-lucide="scale" aria-hidden="true"></i><span>CourtListener<small>Court records</small></span></div></div>
@@ -130,7 +130,7 @@
   </main>
 </div>
 <script src="/static/vendor/lucide.min.js"></script>
-<script src="/static/app.js?v=server-compat-12"></script>
+<script src="/static/app.js?v=vercel-demo-13"></script>
 <script src="/static/motion.js?v=polish-1"></script>
 </body>
 </html>

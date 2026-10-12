@@ -335,13 +335,18 @@ async def investigate(
     investigation["duration_seconds"] = round(time.perf_counter() - started, 2)
 
     # ---- 8. Persist -------------------------------------------------------
-    try:
-        investigation["investigation_id"] = await _persist(
-            investigation, ownership, signals, evidence
-        )
-    except Exception as exc:  # noqa: BLE001 - a storage failure must not lose the result
-        log.warning("persistence failed: %s", exc)
+    if settings.public_demo:
+        # The public Vercel demo has only ephemeral /tmp storage. Reports are
+        # returned to the browser, never recorded in a per-instance database.
         investigation["investigation_id"] = None
+    else:
+        try:
+            investigation["investigation_id"] = await _persist(
+                investigation, ownership, signals, evidence
+            )
+        except Exception as exc:  # noqa: BLE001 - a storage failure must not lose the result
+            log.warning("persistence failed: %s", exc)
+            investigation["investigation_id"] = None
 
     return investigation
 

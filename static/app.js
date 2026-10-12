@@ -80,7 +80,10 @@ async function checkHealth(){
   try{
     const d=await requestJSON(ticket,"/api/v1/health",{},15000);
     if(isCurrent(ticket)){
-      SERVICE_STATUS=d.status!=="ok"?"Service unavailable":Number(d.api_contract_version)<2||d.api_contract_version==null?"Server update required":"Service ready";
+      SERVICE_STATUS=d.status!=="ok"?"Service unavailable":Number(d.api_contract_version)<2||d.api_contract_version==null?"Server update required":d.public_demo?"Public demo ready":"Service ready";
+      if($("privacyNoteText"))$("privacyNoteText").textContent=d.public_demo?
+        "Queries use public external sources. Reports stay in this browser session; download the JSON to keep a copy. Use public information only.":
+        "Queries are sent to external data sources and saved in this workspace. Use public information only.";
       if(SERVICE_STATUS==="Server update required")status("status","The page is connected to an older Brahma server process. Restart the server to load updated person and news searches.",true);
     }
   }catch{if(isCurrent(ticket))SERVICE_STATUS="Service unavailable";}
