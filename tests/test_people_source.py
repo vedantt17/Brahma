@@ -49,6 +49,22 @@ def test_search_returns_humans_and_structured_public_profile_facts(monkeypatch):
     assert all(call.args[0] == people.API for call in fetch.await_args_list)
 
 
+def test_ceo_role_comes_from_matching_organization_claim(monkeypatch):
+    human = entity("Sam Example", employers=[claim({"id": "Q2"})])
+    organization = {"labels": {"en": {"value": "Example AI"}},
+                    "claims": {"P169": [claim({"id": "Q1"}),
+                                         claim({"id": "Q9"}, qualifiers={"P582": [{"datavalue": {
+                                             "value": {"time": "+2020-01-01T00:00:00Z"}}}]})]}}
+    labels = related()["entities"]
+    labels["Q2"] = organization
+    monkeypatch.setattr(people, "fetch_json", AsyncMock(side_effect=[
+        {"entities": {"Q1": human}}, {"entities": labels}]))
+    record = asyncio.run(people.search("Sam Example", profile_identifier="Q1"))[0]
+    employer = record.raw["employers"][0]
+    assert employer["role"] == "Chief executive officer"
+    assert employer["role_source_url"] == "https://www.wikidata.org/wiki/Q2#P169"
+
+
 def test_selected_qid_uses_exact_batch_endpoint_and_still_requires_human(monkeypatch):
     fetch = AsyncMock(return_value={"entities": {"Q9": entity("Company", human=False)}})
     monkeypatch.setattr(people, "fetch_json", fetch)

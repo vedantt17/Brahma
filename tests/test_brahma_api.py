@@ -20,6 +20,8 @@ from app.strategy import board
 def offline(monkeypatch):
     from app.sources import news_rss
     monkeypatch.setattr(news_rss, "fetch", AsyncMock(return_value=None))
+    monkeypatch.setattr(pipeline.organizations, "search", AsyncMock(
+        side_effect=RuntimeError("offline organization fixture")))
     async def forbidden(*args, **kwargs):
         pytest.fail("External HTTP is forbidden in offline API tests")
 
@@ -356,6 +358,45 @@ def test_person_pipeline_uses_human_profiles_and_preserves_person_storage(api, m
             assert not (await session.execute(select(Company))).scalars().all()
             assert (await session.execute(select(Person))).scalars().first().name == "Example Person"
     asyncio.run(check_storage())
+
+
+def test_public_organization_profile_shows_ceo_without_linking_name_matches(api, monkeypatch):
+    from app.resolution.engine import EntityRecord
+    from app.sources.organizations import OrganizationRecords
+
+    public = EntityRecord(source="Wikidata", source_id="Q100", name="Example AI",
+        website="https://example.ai/", url="https://www.wikidata.org/wiki/Q100",
+        officers=["Example Executive"], raw={"entity_type": "organization",
+        "public_profile": True, "officers": [{"name": "Example Executive",
+            "id": "Q200", "role": "Chief executive officer",
+            "source_url": "https://www.wikidata.org/wiki/Q100#P169"}]})
+    fund = EntityRecord(source="GLEIF", source_id="FUND", name="Example AI ETF",
+                        raw={"lei": "FUND", "category": "FUND"})
+    operating = EntityRecord(source="GLEIF", source_id="OPCO", name="Example AI OpCo LLC",
+                             raw={"lei": "OPCO"})
+    monkeypatch.setattr(pipeline.sec, "search", AsyncMock(return_value=[]))
+    monkeypatch.setattr(pipeline.gleif, "search", AsyncMock(return_value=[fund, operating]))
+    monkeypatch.setattr(pipeline.organizations, "search", AsyncMock(return_value=
+        OrganizationRecords([public], {"truncated": True})))
+    monkeypatch.setattr(pipeline.news, "search", AsyncMock(return_value=[]))
+    monkeypatch.setattr(pipeline.courtlistener, "search", AsyncMock(return_value={
+        "available": True, "cases": []}))
+    monkeypatch.setattr(ofac, "screen", AsyncMock(return_value={"match": False, "list_size": 100}))
+    result = api("POST", "/api/v1/supplier/investigate", json={
+        "name": "Example AI", "website": "https://example.ai/"}).json()
+    assert result["supplier"]["name"] == "Example AI"
+    assert result["supplier"]["status"] == "public_profile"
+    assert result["supplier"]["verified"] is False
+    assert result["supplier"]["lei"] is None
+    assert result["entity_resolution"]["selection"]["candidate_count"] == 1
+    assert [n["label"] for n in result["graph"]["resolution"]["nodes"]] == [
+        "Example AI", "Example AI"]
+    assert "Example AI ETF" not in str(result["graph"])
+    assert result["ownership"][0]["name"] == "Example Executive"
+    assert "Chief executive officer" in result["ownership"][0]["role"]
+    assert result["graph"]["network"]["edges"][0]["evidence_url"].endswith("#P169")
+    assert any("Example Executive" in e["description"] and e["url"].endswith("#P169")
+               for e in result["evidence"])
 
 
 def test_person_namesakes_remain_ambiguous_in_api(api, monkeypatch):

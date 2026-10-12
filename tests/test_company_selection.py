@@ -1,6 +1,7 @@
 from app.resolution.engine import EntityRecord, ResolutionResult
 import pytest
-from app.resolution.selection import company_name_key, select_company
+from app.resolution.selection import (company_name_key, select_company,
+                                      select_public_organization)
 
 
 def candidate(name, *, source="GLEIF", identifier=None, confidence=.95, aliases=None,
@@ -101,3 +102,19 @@ def test_supplied_country_must_not_select_a_namesake_over_unknown_country_brand(
     namesake = candidate("OpenAI Ltd", identifier="a", country="US")
     brand = candidate("OpenAI Global LLC", identifier="b", confidence=.4)
     assert select_company([namesake, brand], query_name="OpenAI", country="US").status == "ambiguous"
+
+
+def test_public_profile_prefers_exact_website_and_never_selects_product():
+    profile = candidate("OpenAI", source="Wikidata", identifier="Q1",
+                        website="https://openai.com", public_profile=True)
+    product = candidate("OpenAI ETF", source="Wikidata", identifier="Q2",
+                        website="https://example.com/etf", public_profile=True)
+    assert select_public_organization([product, profile], query_name="OpenAI",
+                                      website="openai.com").best is profile
+    assert select_public_organization([product, profile], query_name="OpenAI",
+                                      website="other.com").best is None
+    assert select_public_organization([product], query_name="OpenAI").best is None
+    undomained = candidate("OpenAI", source="Wikidata", identifier="Q3",
+                           public_profile=True, officers=[{"name": "Example"}])
+    assert select_public_organization([undomained], query_name="OpenAI",
+                                      website="openai.com").best is None

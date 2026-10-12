@@ -349,6 +349,17 @@ toggleTerm('other');return {before,after:node('riskbox').innerHTML,
         data["query"]["entity_type"] = "organization"
         self.assertEqual(self.run_js("return identityCandidateIdentifier({profile_id:'Q123'});", data), "")
 
+    def test_public_organization_profile_is_not_labeled_registry_verified(self):
+        data = fixture()
+        data["supplier"].update(name="Example AI", status="public_profile",
+                                verified=False, primary_source="Wikidata")
+        data["entity_resolution"] = {"selected": {"name": "Example AI", "source": "Wikidata"},
+                                     "selection": {"status": "selected", "candidates": []}}
+        result = self.run_js("renderDashboard();return {meta:node('caseMeta').innerHTML,risk:node('riskbox').innerHTML};", data)
+        self.assertIn("Public profile identity", result["meta"])
+        self.assertIn("not legal identity verification", result["risk"])
+        self.assertNotIn("Registry identity", result["meta"])
+
     def test_recent_news_is_separate_from_adverse_media_and_filters(self):
         data = fixture()
         data["recent_news"] = [{"title": '<img src=x> Dario discusses AI', "source": "Public paper", "date": "2026-10-01", "url": "javascript:alert(1)"}]

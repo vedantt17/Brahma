@@ -59,15 +59,23 @@ Country and official source website fields can help distinguish candidates;
 missing fields do not count as corroboration. GLEIF retrieves bounded legal-name
 and alias candidates and reports truncation. Ownership/insider enrichment runs
 only for the selected entity. An unresolved identity cannot authorize onboarding,
-even when the screening sources responded. Companies absent from the supported
-registries remain unresolved rather than receiving an invented identity.
+even when the screening sources responded. A unique public Wikidata organization
+profile can identify a brand such as OpenAI when legal registry records remain
+ambiguous. It is labeled `public_profile`, never legal-entity verified. Sourced
+CEO and founder claims appear in the Connections network with their Wikidata
+links; an undated claim does not independently establish a current role. The
+Identity candidates view shows only plausible identity matches, not subsidiaries
+or business relationships. Similarly named funds and rejected registry hits are
+not included in that graph.
 Individual searches use public Wikidata human profiles instead of SEC/GLEIF
 company registries. Add an employer/organization, citizenship or optional public
 profile identifier to help distinguish namesakes. Profile candidates include
-public descriptions and sourced employer claims; undated/former claims do not
-establish current employment. Matching a public profile is not independent
-identity verification, and user-entered birth dates are preserved. People absent
-from the public source stay unresolved. Allow `www.wikidata.org` for this path.
+public descriptions and sourced employer claims. When a published employer
+profile names the person as CEO, the network shows that role with its source;
+an undated claim does not independently establish current employment. Matching
+a public profile is not independent identity verification, and user-entered birth
+dates are preserved. People absent from the public source stay unresolved.
+Allow `www.wikidata.org` for this path.
 API and MCP clients can pass optional `employer` and `profile_id` (`Q...`) fields.
 
 Live results require outbound access to the source adapters. In a restricted

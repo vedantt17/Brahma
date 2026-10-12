@@ -107,7 +107,7 @@
       </div></div>
     </section>
     <section class="view" id="view3" aria-label="Entity relationships">
-      <div class="page-heading"><div class="workspace-identity"><span class="workspace-mark"><i data-lucide="workflow" aria-hidden="true"></i></span><div><p class="eyebrow">Entities &amp; connections</p><h1 class="page-title">Relationship network</h1><p class="page-description">Trace identities and relationships back to their evidence.</p></div></div></div><div class="tabs workspace-tabs" aria-label="Graph view"><button class="tab on" aria-pressed="true" id="gt0" onclick="setGraph('resolution')"><i data-lucide="fingerprint" aria-hidden="true"></i>Entity resolution</button><button class="tab" aria-pressed="false" id="gt1" onclick="setGraph('network')"><i data-lucide="git-branch" aria-hidden="true"></i>Connections network</button></div><p class="dim" id="graphHint">Entity resolution and relationship evidence.</p>
+      <div class="page-heading"><div class="workspace-identity"><span class="workspace-mark"><i data-lucide="workflow" aria-hidden="true"></i></span><div><p class="eyebrow">Entities &amp; connections</p><h1 class="page-title">Relationship network</h1><p class="page-description">Trace identities and relationships back to their evidence.</p></div></div></div><div class="tabs workspace-tabs" aria-label="Graph view"><button class="tab on" aria-pressed="true" id="gt0" onclick="setGraph('resolution')"><i data-lucide="fingerprint" aria-hidden="true"></i>Identity candidates</button><button class="tab" aria-pressed="false" id="gt1" onclick="setGraph('network')"><i data-lucide="git-branch" aria-hidden="true"></i>Connections network</button></div><p class="dim" id="graphHint">Identity candidates and sourced relationships.</p>
       <div class="graphwrap"><div class="canvas"><svg id="svg" viewBox="0 0 900 520" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Interactive entity relationship graph"></svg><div class="ghint"><span class="tip" id="zoomTip">100%</span><button title="Zoom in" aria-label="Zoom in" onclick="Graph.zoomBy(1.25)"><i data-lucide="plus" aria-hidden="true"></i></button><button title="Zoom out" aria-label="Zoom out" onclick="Graph.zoomBy(0.8)"><i data-lucide="minus" aria-hidden="true"></i></button><button title="Reset graph view" aria-label="Reset graph view" onclick="Graph.reset()"><i data-lucide="maximize" aria-hidden="true"></i></button></div><div class="legend" id="legend"></div></div><aside class="side" id="side" aria-label="Selected relationship"><div class="empty">No relationship selected.</div></aside></div><section class="card"><h2 id="detailTitle">Evidence detail</h2><div id="graphDetail" class="table-scroll" data-motion-panel></div></section><div class="actions"><button class="ghost" onclick="go(2)"><i data-lucide="arrow-left" aria-hidden="true"></i>Back to evidence</button><button class="ghost" onclick="newScreening()">New investigation</button></div><details class="card"><summary>Full investigation / JSON</summary><pre id="raw"></pre></details>
     </section>
     <section class="view" id="view4" aria-label="Developer integrations">
@@ -130,7 +130,7 @@
   </main>
 </div>
 <script src="/static/vendor/lucide.min.js"></script>
-<script src="/static/app.js?v=vercel-demo-13"></script>
+<script src="/static/app.js?v=vercel-demo-14"></script>
 <script src="/static/motion.js?v=polish-1"></script>
 </body>
 </html>

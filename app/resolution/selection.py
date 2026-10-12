@@ -143,3 +143,38 @@ def select_company(
     return CompanySelection(best, "selected",
         "Selected by supplied registry identifier." if identifier else
         "One registry identity matches the supplied name and available details.", eligible)
+
+
+def select_public_organization(
+    resolutions: list[ResolutionResult], *, query_name: str,
+    country: str | None = None, website: str | None = None,
+) -> CompanySelection:
+    """Select a public brand profile without treating it as a legal registry ID."""
+    key = company_name_key(query_name)
+    qc, qw = normalize_country(country), normalize_domain(website)
+    eligible = []
+    for result in resolutions:
+        record = result.record
+        if record.source != "Wikidata" or not record.raw.get("public_profile"):
+            continue
+        if key not in {company_name_key(n) for n in [record.name, *record.aliases]}:
+            continue
+        rc, rw = normalize_country(record.country), normalize_domain(record.website)
+        if (qc and rc and qc != rc) or (qw and rw != qw):
+            continue
+        # A published website or officer claim distinguishes an organization
+        # profile from product pages and similarly named search results.
+        if rw or record.raw.get("officers"):
+            eligible.append(result)
+    if qw and any(normalize_domain(r.record.website) == qw for r in eligible):
+        eligible = [r for r in eligible if normalize_domain(r.record.website) == qw]
+    elif not qw and any(r.record.website for r in eligible):
+        eligible = [r for r in eligible if r.record.website]
+    if len(eligible) == 1:
+        return CompanySelection(eligible[0], "selected",
+            "A public organization profile matches this name"
+            + (" and website" if qw else "")
+            + "; its legal entity and current leadership are not independently verified.", eligible)
+    return CompanySelection(None, "ambiguous" if eligible else "unresolved",
+        "Several public organization profiles match; supply a website or legal identifier."
+        if eligible else "No matching public organization profile was found.", eligible)

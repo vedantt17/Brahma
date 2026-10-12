@@ -116,12 +116,24 @@ async def search(name: str, country: str | None = None, limit: int = 10,
             employer_id = value.get("id") if isinstance(value, dict) else None
             if not employer_id or not _QID.fullmatch(employer_id):
                 continue
-            employers.append({"id": employer_id, "name": _label(label_entities.get(employer_id, {})),
+            employer_entity = label_entities.get(employer_id, {})
+            # P169 is the organization's CEO statement. It carries the role
+            # that a bare P108 employment claim cannot establish.
+            ceo_claims = [c for c in _claims(employer_entity, "P169")
+                          if isinstance(_value(c), dict) and _value(c).get("id") == qid]
+            active_ceo = next((c for c in ceo_claims if not _qualifier_time(c, "P582")), None)
+            former_ceo = next((c for c in ceo_claims if _qualifier_time(c, "P582")), None)
+            role_claim = active_ceo or former_ceo
+            employers.append({"id": employer_id, "name": _label(employer_entity),
                               "source_url": source_url + "#P108", "property": "P108",
                               "current_status": "end_date_recorded" if _qualifier_time(claim, "P582")
                               else "current_status_unverified",
                               "start_date": _qualifier_time(claim, "P580"),
-                              "end_date": _qualifier_time(claim, "P582")})
+                              "end_date": _qualifier_time(claim, "P582"),
+                              "role": ("Chief executive officer" if active_ceo else
+                                       "Former chief executive officer" if former_ceo else None),
+                              "role_source_url": f"https://www.wikidata.org/wiki/{employer_id}#P169"
+                              if role_claim else None})
         occupations = [{"id": oid, "name": _label(label_entities.get(oid, {}))}
                        for oid in _ids(entity, "P106")]
         countries = [{"id": cid, "name": _label(label_entities.get(cid, {})),

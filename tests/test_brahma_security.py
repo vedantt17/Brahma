@@ -16,7 +16,7 @@ from app.agent import investigator
 from app.config import settings
 from app.resolution import embeddings
 from app.risk.engine import evaluate, recommendation
-from app.sources import courtlistener, gdelt, gleif, ofac, sec
+from app.sources import courtlistener, gdelt, gleif, ofac, organizations, sec
 from app.strategy import board, samples
 
 
@@ -118,13 +118,13 @@ def test_pipeline_timeout_awaits_source_cleanup(monkeypatch):
         finally:
             await asyncio.sleep(0)
             finished.append(True)
-    for source in (sec, gleif, gdelt, courtlistener):
+    for source in (sec, gleif, organizations, gdelt, courtlistener):
         monkeypatch.setattr(source, "search", stalled)
     monkeypatch.setattr(ofac, "screen", stalled)
     monkeypatch.setattr(settings, "investigation_timeout_seconds", 0.01)
     monkeypatch.setattr(pipeline, "_persist", AsyncMock(return_value=None))
     result = asyncio.run(pipeline.investigate(name="Timeout Fixture"))
-    assert len(finished) == 5
+    assert len(finished) == 6
     assert not any(result["sources_consulted"].values())
     assert result["supplier"]["verified"] is False
 
@@ -138,17 +138,17 @@ def test_cancelled_investigation_does_not_leave_source_tasks(monkeypatch):
             await asyncio.Event().wait()
         finally:
             finished.append(True)
-    for source in (sec, gleif, gdelt, courtlistener):
+    for source in (sec, gleif, organizations, gdelt, courtlistener):
         monkeypatch.setattr(source, "search", stalled)
     monkeypatch.setattr(ofac, "screen", stalled)
     async def exercise():
         task = asyncio.create_task(pipeline.investigate(name="Cancelled Fixture"))
-        while len(started) < 5:
+        while len(started) < 6:
             await asyncio.sleep(0)
         task.cancel()
         with pytest.raises(asyncio.CancelledError):
             await task
-        assert len(finished) == 5
+        assert len(finished) == 6
     asyncio.run(exercise())
 
 

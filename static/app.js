@@ -287,6 +287,7 @@ async function runInvestigation(){
 }
 function afterData(msg){
   cancelRequest("insight");
+  GRAPH=DATA?.ownership?.length?"network":"resolution";
   F={cats:new Set(),bias:new Set(),terms:new Set(),severe:false};SELECTED=null;
   $("sevChk").checked=false;$("onlyFlagged").checked=false;
   $("s2").disabled=false;$("s3").disabled=false;
@@ -635,6 +636,8 @@ function selectIdentityCandidate(index){
 function renderDashboard(){
   const d=DATA,s=d.supplier,r=d.risk,ms=d.media_summary;
   const person=s.entity_type==="individual";
+  const publicOrg=!person&&s.primary_source==="Wikidata";
+  const publicIdentity=person||publicOrg;
   const publicProfile=d.entity_resolution?.selected||s.public_profile||{};
   const identitySelection=d.entity_resolution?.selection;
   const rawIdentityStatus=identitySelection&&identitySelection.status!=="selected"?identitySelection.status:s.status;
@@ -658,10 +661,10 @@ function renderDashboard(){
   $("rTab").textContent=s.name;
   $("caseMeta").innerHTML=`<span class="case-meta-item">${person?"Citizenship: ":""}${esc(s.country||"Country not reported")}</span>
     <span class="case-meta-item">${esc(s.entity_type||"Type not reported")}</span>
-    <span class="case-meta-item">${person?"Public profile identity":"Registry identity"}: ${esc(identityStatus||"Not resolved")}</span>
+    <span class="case-meta-item">${publicIdentity?"Public profile identity":"Registry identity"}: ${esc(identityStatus||"Not resolved")}</span>
     <span class="case-mode">${esc(provenance(d,DATA_ORIGIN))}</span>`;
   if(!sample&&d.query?.name&&d.query.name!==s.name){
-    $("caseMeta").innerHTML+=`<span class="case-meta-item">Searched as ${esc(d.query.name)} · ${esc(s.primary_source||"Source")} ${person?"public profile name":"legal name"} shown</span>`;
+    $("caseMeta").innerHTML+=`<span class="case-meta-item">Searched as ${esc(d.query.name)} · ${esc(s.primary_source||"Source")} ${publicIdentity?"public profile name":"legal name"} shown</span>`;
   }
   if(person&&!sample&&(publicProfile.description||publicProfile.employers?.length)){
     $("caseMeta").innerHTML+=`<span class="case-meta-item">${esc(publicProfile.description||"")}${publicProfile.employers?.length?` · Reported affiliations: ${publicProfile.employers.map(e=>esc(e.name||e.id)+(e.end_date?" (former)":" (current status unverified)")).join(", ")}`:""}</span>`;
@@ -672,7 +675,7 @@ function renderDashboard(){
       <div><strong class="risk-score-number">${num(evidenceScore(r.score,100))}</strong><span class="risk-score-denom">/100</span>
       <span class="badge b-${level}">${esc(String(r.level||"unknown").toUpperCase())}</span></div></div>
     <dl class="risk-facts">
-      <div><dt>Identity</dt><dd>${esc(identityDisplay||"Not resolved")}${noSelectedIdentity?"":` &middot; ${fixed(s.identity_confidence)}`}<small class="dim"> ${person?"Public profile match score; not independent identity verification":"Registry match score; not a screening clearance"}</small></dd></div>
+      <div><dt>Identity</dt><dd>${esc(identityDisplay||"Not resolved")}${noSelectedIdentity?"":` &middot; ${fixed(s.identity_confidence)}`}<small class="dim"> ${person?"Public profile match score; not independent identity verification":publicOrg?"Public profile match score; not legal identity verification":"Registry match score; not a screening clearance"}</small></dd></div>
       <div><dt>Sanctions</dt><dd>${d.sanctions.match?"MATCH":sanctionsAvailable?"No match":"Unavailable / not screened"}</dd></div>
       <div><dt>Adverse media</dt><dd>${mediaUnavailable?"Unavailable / not screened":`${num(ms.total??d.adverse_media.length)} articles`}</dd></div>
       <div><dt>Litigation</dt><dd>${litigationUnavailable?"Unavailable / not screened":`${(d.litigation.cases||[]).length} docket ${(d.litigation.cases||[]).length===1?"match":"matches"}${d.litigation.truncated?" (limited)":""}`}</dd></div>
@@ -1183,6 +1186,7 @@ const Graph={
       <div class="kv"><div>Type</div><div>${esc(st.l||n.type)}</div>
       ${n.detail?`<div>Detail</div><div class="dim">${esc(n.detail)}</div>`:""}
       ${n.source?`<div>Source</div><div>${esc(n.source)}</div>`:""}
+      ${n.evidence_url?`<div>Evidence</div><div>${externalLink(n.evidence_url,"Open source record ↗")}</div>`:""}
       ${n.confidence!=null?`<div>Confidence</div><div>${fixed(n.confidence)}<div class="bar"><i data-motion-bar style="width:${pct(n.confidence*100)}%"></i></div></div>`:""}</div>`;
     if(n.breakdown&&Object.keys(n.breakdown).length){h+=`<div style="margin-top:12px"><h2>Match features</h2><div class="kv">`+
       Object.entries(n.breakdown).map(([k,v])=>`<div>${esc(k)}</div><div>${fixed(v)}<div class="bar"><i data-motion-bar style="width:${pct(v*100)}%"></i></div></div>`).join("")+`</div></div>`;}
@@ -1198,7 +1202,8 @@ const Graph={
     $("side").innerHTML=`<h2>Connection</h2>
       <div class="conn"><b>${esc(s.label)}</b><span class="rel">${esc(e.relationship||e.label||"linked")}</span><b>${esc(t.label)}</b></div>
       <div class="kv">${e.confidence!=null?`<div>Confidence</div><div>${(+e.confidence).toFixed(2)}<div class="bar"><i data-motion-bar style="width:${Math.round(e.confidence*100)}%"></i></div></div>`:""}
-      ${e.description?`<div>Known facts</div><div class="dim">${esc(e.description)}</div>`:""}</div>
+      ${e.description?`<div>Known facts</div><div class="dim">${esc(e.description)}</div>`:""}
+      ${e.evidence_url?`<div>Evidence</div><div>${externalLink(e.evidence_url,"Open source record ↗")}</div>`:""}</div>
       <button type="button" class="btn" id="insightBtn" onclick="Graph.runInsight()"><i data-lucide="scan-text"></i> Generate connection insight</button>
       <div id="insightBox" aria-live="polite"></div>`;refreshIcons();window.BrahmaMotion?.enter($("side"));},
 
@@ -1231,18 +1236,19 @@ function setGraph(kind){
   window.BrahmaMotion?.enter($("graphDetail"));
   $("graphHint").textContent=kind==="network"
     ? `${Graph.nodes.length} entities / ${Graph.edges.length} connections`
-    : `${num(DATA.entity_resolution.candidates_considered)} candidates / ${DATA.entity_resolution.selected?1:0} selected identity`;}
+    : `${num(DATA.entity_resolution.selection?.candidate_count)} possible identity matches / ${DATA.entity_resolution.selected?1:0} selected · ${num(DATA.entity_resolution.candidates_considered)} records screened, not business connections`;}
 
 function renderGraphDetail(){
   const d=DATA;
-  if(GRAPH==="resolution"){const er=d.entity_resolution;$("detailTitle").textContent="Why this identity was selected";
-    const rows=[er.selected,...(er.alternatives||[])].filter(Boolean);
-    $("graphDetail").innerHTML=rows.length?`<table><tr><th>Candidate</th><th>Source</th><th>Confidence</th><th>Feature breakdown</th></tr>
-      ${rows.map(c=>`<tr><td>${c===er.selected?"<b>":""}${esc(c.name)}${c===er.selected?"</b> <span class='badge b-low'>selected</span>":""}</td>
+  if(GRAPH==="resolution"){const er=d.entity_resolution;$("detailTitle").textContent=er.selected?"Selected identity and alternatives":"Possible identity matches";
+    const rows=er.selection?.candidates||[];
+    $("graphDetail").innerHTML=`<p class="dim">These are search results considered for identity matching. They are not subsidiaries, employers, or other business connections. Use the Connections network for sourced relationships.</p>`+
+      (rows.length?`<table><tr><th>Candidate</th><th>Source</th><th>Confidence</th><th>Feature breakdown</th></tr>
+      ${rows.map(c=>`<tr><td>${er.selected?.name===c.name&&er.selected?.source===c.source?"<b>":""}${esc(c.name)}${er.selected?.name===c.name&&er.selected?.source===c.source?"</b> <span class='badge b-low'>selected</span>":""}</td>
         <td class="dim">${esc(c.source)}</td>
         <td>${fixed(c.confidence)}<div class="bar"><i data-motion-bar style="width:${pct(c.confidence*100)}%"></i></div></td>
         <td class="dim">${Object.entries(c.confidence_breakdown||{}).map(([k,v])=>`${esc(k)} ${fixed(v)}`).join(" · ")}</td></tr>`).join("")}</table>
-      <div class="dim" style="margin-top:9px;font-size:12px">Embeddings: ${esc(er.embedding_backend)} · ${esc(er.candidates_considered)} candidates · threshold ${esc(er.match_threshold)}</div>`:`<div class="empty">No candidates.</div>`;
+      <div class="dim" style="margin-top:9px;font-size:12px">Embeddings: ${esc(er.embedding_backend)} · ${esc(er.candidates_considered)} source records screened · threshold ${esc(er.match_threshold)}</div>`:`<div class="empty">No plausible identity candidates were found.</div>`);
   }else{$("detailTitle").textContent="Related parties";
     $("graphDetail").innerHTML=d.ownership.length?`<table><tr><th>Name</th><th>Role</th><th>Relationship</th><th>Source</th><th>Conf.</th></tr>
       ${d.ownership.map(o=>`<tr><td>${esc(o.name)}</td><td class="dim">${esc(o.role)}</td>
