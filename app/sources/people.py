@@ -1,7 +1,11 @@
 """Public Wikidata human profiles; a name hit alone never establishes identity."""
 from __future__ import annotations
 
+import asyncio
 import re
+import time
+
+from app.config import settings
 
 from app.http_client import fetch_json
 from app.resolution.engine import EntityRecord
@@ -58,6 +62,7 @@ def _qualifier_time(claim: dict, prop: str) -> str | None:
 async def search(name: str, country: str | None = None, limit: int = 10,
                  *, profile_identifier: str | None = None) -> list[EntityRecord]:
     """Retrieve at most 20 human candidates; country is not inferred from residence."""
+    started = time.monotonic()
     limit = max(1, min(int(limit), 20))
     identifier = (profile_identifier or "").strip().upper()
     if identifier and not _QID.fullmatch(identifier):
@@ -88,8 +93,14 @@ async def search(name: str, country: str | None = None, limit: int = 10,
     label_entities = {}
     if related:
         try:
-            label_entities = await _entities(related, labels_only=True)
-        except RuntimeError:
+            # Labels enrich already-retrieved human identities. A slow label
+            # endpoint must not discard those profiles at the pipeline deadline.
+            remaining = settings.investigation_timeout_seconds - (time.monotonic() - started) - 2
+            if remaining <= 0:
+                raise TimeoutError("Profile label enrichment budget exhausted")
+            label_entities = await asyncio.wait_for(
+                _entities(related, labels_only=True), timeout=min(8.0, remaining))
+        except (RuntimeError, TimeoutError):
             metadata["labels_available"] = False
         else:
             metadata["labels_available"] = True

@@ -44,6 +44,7 @@ def evaluate(
     identity_verdict: str,
     ownership: list[dict],
     sources_consulted: dict[str, bool],
+    identity_entity_type: str = "organization",
 ) -> tuple[dict, list[Signal]]:
     """Return (risk_block, signals)."""
     signals: list[Signal] = []
@@ -155,7 +156,11 @@ def evaluate(
                 description=(
                     f"Supplier identity is {identity_verdict} "
                     f"(resolution confidence {identity_confidence:.2f}); "
-                    "no authoritative registry record matched with confidence"
+                    + ("a public profile was selected; independently confirm the person's identity"
+                     if identity_verdict == "public_profile" else
+                     "no public human profile was selected; independently confirm the person's identity"
+                     if identity_entity_type == "individual" else
+                     "no authoritative registry record matched with confidence")
                 ),
                 severity=int(round(WEIGHT_IDENTITY * shortfall)) or 5,
                 source="EntityResolution",

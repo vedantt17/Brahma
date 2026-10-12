@@ -173,3 +173,16 @@ def test_docket_signal_is_search_match_not_confirmed_entity_finding():
     ]})
     assert "docket search match" in risk["reasons"][0]
     assert "naming the supplier" not in risk["reasons"][0]
+
+
+def test_selected_public_person_profile_does_not_claim_registry_failure():
+    risk, _ = _evaluate(identity_verdict="public_profile", identity_confidence=.93)
+    assert "a public profile was selected" in risk["reasons"][0]
+    assert "independently confirm" in risk["reasons"][0]
+    assert "no authoritative registry record" not in risk["reasons"][0]
+
+
+def test_unresolved_person_does_not_require_company_registry_match():
+    risk, _ = _evaluate(identity_verdict="unverified", identity_confidence=0, identity_entity_type="individual")
+    assert "no public human profile was selected" in risk["reasons"][0]
+    assert "registry" not in risk["reasons"][0]

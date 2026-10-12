@@ -28,7 +28,7 @@ from app.resolution.normalize import normalize_country, normalize_domain, normal
 from app.resolution.selection import CompanySelection, company_name_key, select_company
 from app.resolution.person_selection import select_person
 from app.risk import evaluate, recommendation
-from app.sources import courtlistener, gdelt, gleif, news, ofac, optional_sources, people, sec
+from app.sources import courtlistener, gdelt, gleif, news, news_rss, ofac, optional_sources, people, sec
 
 log = logging.getLogger(__name__)
 
@@ -72,6 +72,7 @@ async def investigate(
         _safe("people", people.search(name, country, profile_identifier=profile_id), [])]
     tasks = identity_tasks + [
         _safe("gdelt", news.search(_media_search_name(name, aliases, entity_type)), []),
+        _safe("recent_news", news_rss.search_recent(_media_search_name(name, aliases, entity_type)), []),
         _safe("courtlistener", courtlistener.search(name),
               {"available": False, "cases": [], "note": "not run"}),
         _safe("ofac", ofac.screen(name, country, date_of_birth),
@@ -120,6 +121,13 @@ async def investigate(
     media: list[dict] = results.get("gdelt")
     if media is None:
         media = []
+    recent_news = results.get("recent_news")
+    if recent_news is None:
+        recent_news = []
+    recent_metadata = getattr(recent_news, "search_metadata", {}) or {}
+    recent_news_summary = {"available": bool(consulted.get("recent_news")),
+                           "total": len(recent_news), "search_metadata": recent_metadata,
+                           "lookback_days": recent_metadata.get("lookback_days", 90)}
     news_metadata = getattr(media, "search_metadata", {}) or {}
     if "providers" in news_metadata:
         consulted.update(news_metadata["providers"])
@@ -213,22 +221,34 @@ async def investigate(
     transactions = _build_transactions(identity_records, supplier["name"])
     media_summary = _summarize_media(media)
     media_summary["available"] = media_available
-    media_summary["lookback_months"] = gdelt.search_months()
+    media_summary["lookback_months"] = news_metadata.get("lookback_months", gdelt.search_months())
+    if news_metadata.get("lookback_days") is not None:
+        media_summary["lookback_days"] = news_metadata["lookback_days"]
     media_summary["search_metadata"] = getattr(media, "search_metadata", None)
 
     # ---- 5. Evidence layer -----------------------------------------------
     evidence = _build_evidence(identity_records, media, litigation, sanctions)
 
     # ---- 6. Risk signals --------------------------------------------------
+    subject_selected = best is not None
+    # Name searches yield leads, not attributable adverse events, until the
+    # requested legal entity or public person profile has been selected.
+    scored_litigation = litigation if subject_selected else {**litigation, "cases": []}
+    media_summary["attribution_status"] = "selected_subject_name_match" if subject_selected else "unresolved_name_search"
+    litigation["attribution_status"] = media_summary["attribution_status"]
     risk, signals = evaluate(
         sanctions=sanctions,
-        litigation=litigation,
-        adverse_media=media,
+        litigation=scored_litigation,
+        adverse_media=media if subject_selected else [],
         identity_confidence=identity_confidence,
         identity_verdict=identity_verdict,
         ownership=ownership,
         sources_consulted=consulted,
+        identity_entity_type=entity_type,
     )
+    risk["evidence_attribution"] = {"subject_selected": subject_selected,
+                                    "unscored_media_leads": len(media) if not subject_selected else 0,
+                                    "unscored_docket_leads": len(litigation.get("cases") or []) if not subject_selected else 0}
     risk["identity_assessment"] = {"confirmed": bool(best and supplier["verified"]),
                                    "status": selection.status, "reason": selection.reason,
                                    "entity_type": entity_type}
@@ -286,6 +306,8 @@ async def investigate(
         "ownership": ownership,
         "sanctions": sanctions,
         "adverse_media": media,
+        "recent_news": recent_news,
+        "recent_news_summary": recent_news_summary,
         "media_summary": media_summary,
         "litigation": litigation,
         "transactions": transactions,

@@ -13,7 +13,9 @@ async def search(name: str) -> gdelt.MediaResults:
         primary = await asyncio.wait_for(gdelt.search(name), timeout=12)
         providers["gdelt"] = True
         metadata = dict(getattr(primary, "search_metadata", {}) or {})
-        if primary or metadata.get("raw_count", 0) > 0:
+        # A provider can return many unrelated headlines which all fail local
+        # entity/risk checks. That is still zero evidence, so try the feed.
+        if primary:
             metadata.update(provider="GDELT", providers=providers)
             return gdelt.MediaResults(primary, metadata)
     except Exception as exc:

@@ -100,3 +100,43 @@ def test_failed_api_does_not_report_zero_matching_people(monkeypatch):
     monkeypatch.setattr(people, "fetch_json", AsyncMock(return_value=None))
     with pytest.raises(RuntimeError, match="unavailable"):
         asyncio.run(people.search("Person"))
+
+
+def test_source_profile_flows_into_person_selector_without_hardcoded_identity(monkeypatch):
+    from app.resolution.engine import resolve
+    from app.resolution.person_selection import select_person
+    from app.resolution import embeddings
+
+    human = entity("Public Person", employers=[])
+    monkeypatch.setattr(people, "fetch_json", AsyncMock(side_effect=[
+        {"search": [{"id": "Q1"}]}, {"entities": {"Q1": human}}, related()]))
+    monkeypatch.setattr(embeddings, "_backend", "hashed")
+
+    async def run():
+        records = await people.search("Public Person")
+        ranked = await resolve(query_name="Public Person", candidates=records,
+                               query_country="US")
+        selected = select_person(ranked, query_name="Public Person", country="US")
+        assert selected.status == "selected"
+        assert selected.best.record.raw["profile_identifier"] == "Q1"
+        assert selected.best.confidence > 0
+        assert "unverified" in selected.reason
+    asyncio.run(run())
+
+
+def test_optional_label_timeout_preserves_retrieved_human_identity(monkeypatch):
+    human = entity("Public Person")
+    fetch = AsyncMock(side_effect=[{"search": [{"id": "Q1"}]}, {"entities": {"Q1": human}}])
+    monkeypatch.setattr(people, "fetch_json", fetch)
+
+    async def timeout_labels(awaitable, timeout):
+        awaitable.close()
+        raise TimeoutError("optional labels too slow")
+    monkeypatch.setattr(people.asyncio, "wait_for", timeout_labels)
+    records = asyncio.run(people.search("Public Person"))
+    assert len(records) == 1
+    assert records[0].name == "Public Person"
+    assert records[0].raw["profile_identifier"] == "Q1"
+    assert records.search_metadata["labels_available"] is False
+    assert records[0].raw["occupations"][0]["id"] == "Q3"
+    assert records[0].raw["occupations"][0]["name"] is None

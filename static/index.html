@@ -10,7 +10,7 @@
 <link rel="preload" href="/static/vendor/geist-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/static/brahma.css?v=workspace-1">
 <link rel="stylesheet" href="/static/evidence-workspace.css?v=workspace-5">
-<link rel="stylesheet" href="/static/workspace.css?v=person-selection-10">
+<link rel="stylesheet" href="/static/workspace.css?v=recent-news-11">
 </head>
 <body>
 <a class="skip-link" href="#workspace">Skip to workspace</a>
@@ -90,6 +90,7 @@
         <section class="evidence-panel" role="tabpanel" id="evidence-panel-media" data-evidence-panel="media" aria-labelledby="evidence-tab-media" tabindex="0">
           <div class="rtoolbar"><div><h2>Adverse media</h2><span class="cnt" id="mediaCount"></span></div><label class="sort" for="sortSel">Sort by<select id="sortSel" onchange="renderResults()"><option value="severity">Highest severity</option><option value="date">Most recent</option><option value="bias">Highest bias score</option></select></label></div>
           <div class="rlist"><table class="rtable"><thead><tr><th aria-label="Article number">#</th><th>Article</th><th>Source</th><th>Date</th><th>Objectivity</th><th>Severity</th></tr></thead><tbody id="resultsList"></tbody></table></div>
+          <section aria-label="Recent news"><div class="rtoolbar"><div><h2>Recent news</h2><span class="cnt" id="recentNewsCount"></span><p class="dim">General headlines matching the searched name. These are context, and do not add to the risk score.</p></div></div><div class="rlist"><table class="rtable recent-news-table"><thead><tr><th>Headline</th><th>Source</th><th>Date</th></tr></thead><tbody id="recentNewsList"></tbody></table></div></section>
         </section>
         <section class="evidence-panel" role="tabpanel" id="evidence-panel-signals" data-evidence-panel="signals" aria-labelledby="evidence-tab-signals" tabindex="0" hidden>
           <div class="signals-grid">
@@ -129,7 +130,7 @@
   </main>
 </div>
 <script src="/static/vendor/lucide.min.js"></script>
-<script src="/static/app.js?v=person-selection-10"></script>
+<script src="/static/app.js?v=recent-news-11"></script>
 <script src="/static/motion.js?v=polish-1"></script>
 </body>
 </html>

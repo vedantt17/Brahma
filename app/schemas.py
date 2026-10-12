@@ -100,6 +100,8 @@ class InvestigationResponse(BaseModel):
     ownership: list[dict[str, Any]]
     sanctions: dict[str, Any]
     adverse_media: list[dict[str, Any]]
+    recent_news: list[dict[str, Any]] = Field(default_factory=list)
+    recent_news_summary: dict[str, Any] = Field(default_factory=dict)
     media_summary: dict[str, Any]
     litigation: dict[str, Any]
     transactions: dict[str, Any]

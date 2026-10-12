@@ -386,3 +386,42 @@ def test_lifespan_waits_for_background_cancellation_on_exception(monkeypatch):
                 raise RuntimeError("exercise")
     asyncio.run(exercise())
     assert events == ["cancelled", "http", "database"]
+
+
+def test_general_recent_headlines_survive_api_without_becoming_risk_evidence(api, monkeypatch):
+    from app.sources.gdelt import MediaResults
+    monkeypatch.setattr(pipeline.sec, "search", AsyncMock(return_value=[]))
+    monkeypatch.setattr(pipeline.gleif, "search", AsyncMock(return_value=[]))
+    monkeypatch.setattr(pipeline.news, "search", AsyncMock(return_value=MediaResults([], {
+        "providers": {"gdelt": True}, "raw_count": 0, "lookback_months": 3})))
+    headline = {"title": "Example announces a new product", "source": "Public paper",
+                "date": "2026-10-01", "url": "https://example.org/news",
+                "evidence_scope": "general_news", "sentiment": "unclassified"}
+    monkeypatch.setattr(pipeline.news_rss, "search_recent", AsyncMock(return_value=MediaResults([headline], {
+        "lookback_days": 90, "raw_count": 1, "evidence_scope": "general_news"})))
+    monkeypatch.setattr(pipeline.courtlistener, "search", AsyncMock(return_value={"available": True, "cases": []}))
+    monkeypatch.setattr(ofac, "screen", AsyncMock(return_value={"match": False, "list_size": 100}))
+    result = api("POST", "/api/v1/supplier/investigate", json={"name": "Example"}).json()
+    assert result["recent_news"] == [headline]
+    assert result["recent_news_summary"]["available"] is True
+    assert result["recent_news_summary"]["lookback_days"] == 90
+    assert result["adverse_media"] == []
+    assert not any(c["category"] == "adverse_media" for c in result["risk"]["contributions"])
+    assert api("GET", f"/api/v1/investigations/{result['investigation_id']}").json() == result
+
+
+def test_unresolved_namesake_news_and_dockets_are_unscored_leads(api, monkeypatch):
+    from app.sources.gdelt import MediaResults
+    monkeypatch.setattr(pipeline.sec, "search", AsyncMock(return_value=[]))
+    monkeypatch.setattr(pipeline.gleif, "search", AsyncMock(return_value=[]))
+    adverse = {"title": "Example namesake faces fraud lawsuit", "sentiment": "negative", "source": "Public paper", "url": "https://example.org/adverse", "severity": 1.0, "confidence": .95, "categories": [], "category_keys": [], "bias": {}}
+    monkeypatch.setattr(pipeline.news, "search", AsyncMock(return_value=MediaResults([adverse], {"providers": {"gdelt": True}})))
+    monkeypatch.setattr(pipeline.news_rss, "search_recent", AsyncMock(return_value=MediaResults([], {})))
+    monkeypatch.setattr(pipeline.courtlistener, "search", AsyncMock(return_value={"available": True, "cases": [{"case": "Example v. Namesake", "confidence": .9, "url": "https://example.org/docket"}]}))
+    monkeypatch.setattr(ofac, "screen", AsyncMock(return_value={"match": False, "list_size": 100}))
+    result = api("POST", "/api/v1/supplier/investigate", json={"name": "Example"}).json()
+    assert len(result["adverse_media"]) == len(result["litigation"]["cases"]) == 1
+    assert result["media_summary"]["attribution_status"] == "unresolved_name_search"
+    assert result["risk"]["evidence_attribution"]["unscored_media_leads"] == 1
+    assert result["risk"]["evidence_attribution"]["unscored_docket_leads"] == 1
+    assert not any(c["category"] in {"adverse_media", "litigation"} for c in result["risk"]["contributions"])

@@ -206,6 +206,10 @@ button, .btn, a, summary, input, textarea, select { transition: color 160ms var(
 #evidence-panel-records { border-top: 3px solid var(--accent); }
 .rtable thead th { color: var(--blue-ink); background: #e5eff7; }
 .rtable tbody tr:hover td { background: #e5eff7; }
+.recent-news-table th:first-child { width: auto; }
+.recent-news-table th:nth-child(2) { width: 170px; }
+.recent-news-table th:nth-child(3) { width: 105px; }
+.recent-news-table td:first-child { overflow-wrap: anywhere; }
 .signal-section h2 { color: var(--green-ink); }
 .signal-section + .signal-section h2 { color: var(--blue-ink); }
 .term-track { background: var(--green-soft); }
@@ -285,6 +289,9 @@ button, .btn, a, summary, input, textarea, select { transition: color 160ms var(
   #side, #view3 > .card { padding: 16px; }
   .risk-summary { padding: 16px 16px 0; }
   .evidence-panel { padding: 12px; }
+  .recent-news-table th:first-child, .recent-news-table td:first-child:not([colspan]) { display: table-cell; }
+  .recent-news-table th:nth-child(2) { width: 94px; }
+  .recent-news-table td:first-child { font-weight: 550; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; scroll-behavior: auto !important; }

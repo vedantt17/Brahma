@@ -337,6 +337,41 @@ toggleTerm('other');return {before,after:node('riskbox').innerHTML,
         data["query"]["entity_type"] = "organization"
         self.assertEqual(self.run_js("return identityCandidateIdentifier({profile_id:'Q123'});", data), "")
 
+    def test_recent_news_is_separate_from_adverse_media_and_filters(self):
+        data = fixture()
+        data["recent_news"] = [{"title": '<img src=x> Dario discusses AI', "source": "Public paper", "date": "2026-10-01", "url": "javascript:alert(1)"}]
+        data["recent_news_summary"] = {"available": True, "lookback_days": 90}
+        result = self.run_js("renderDashboard();F.severe=true;refresh();return {html:node('recentNewsList').innerHTML,count:node('recentNewsCount').textContent,risk:DATA.risk.score,adverse:DATA.adverse_media.length};", data)
+        self.assertIn("Dario discusses AI", result["html"])
+        self.assertNotIn("<img", result["html"])
+        self.assertNotIn("javascript:", result["html"])
+        self.assertIn("Last 90 days", result["count"])
+        self.assertEqual(result["risk"], 28)
+        self.assertEqual(result["adverse"], 3)
+
+    def test_recent_news_distinguishes_outage_from_successful_zero(self):
+        data = fixture()
+        data["recent_news_summary"] = {"available": False}
+        result = self.run_js("renderRecentNews();return node('recentNewsList').innerHTML;", data)
+        self.assertIn("source unavailable", result)
+        data["recent_news_summary"]["available"] = True
+        result = self.run_js("renderRecentNews();return node('recentNewsList').innerHTML;", data)
+        self.assertIn("No recent headlines matched", result)
+        self.assertNotIn("source unavailable", result)
+
+    def test_failed_person_lookup_does_not_display_zero_match_score(self):
+        data = fixture()
+        data["supplier"].update(entity_type="individual", status="unverified", identity_confidence=0)
+        data["entity_resolution"]["selection"] = {"status": "not_found", "candidates": []}
+        data["sources_consulted"]["people"] = False
+        result = self.run_js("renderDashboard();return node('riskbox').innerHTML;", data)
+        self.assertIn("Unavailable", result)
+        self.assertNotIn("0.00", result)
+        data["sources_consulted"]["people"] = True
+        result = self.run_js("renderDashboard();return node('riskbox').innerHTML;", data)
+        self.assertIn("No match established", result)
+        self.assertNotIn("0.00", result)
+
     def test_sample_and_escaped_entity_metadata_are_preserved(self):
         data = fixture()
         hostile = '<img src=x onerror="alert(1)">'

@@ -625,6 +625,9 @@ function renderDashboard(){
   const identitySelection=d.entity_resolution?.selection;
   const rawIdentityStatus=identitySelection&&identitySelection.status!=="selected"?identitySelection.status:s.status;
   const identityStatus=rawIdentityStatus==="public_profile"?"public profile match":rawIdentityStatus;
+  const noSelectedIdentity=!!identitySelection&&identitySelection.status!=="selected";
+  const identityUnavailable=noSelectedIdentity&&(person?d.sources_consulted?.people===false:d.sources_consulted?.gleif===false&&d.sources_consulted?.sec===false);
+  const identityDisplay=identityUnavailable?"Unavailable":noSelectedIdentity?(identityStatus==="ambiguous"?"Ambiguous":"No match established"):identityStatus;
   renderIdentitySelection();
   const level=["low","medium","high","critical"].includes(r.level)?r.level:"neutral";
   const sanctionsAvailable=d.sanctions.available!==false&&d.sources_consulted?.ofac!==false&&Number(d.sanctions.list_size)>0;
@@ -655,7 +658,7 @@ function renderDashboard(){
       <div><strong class="risk-score-number">${num(evidenceScore(r.score,100))}</strong><span class="risk-score-denom">/100</span>
       <span class="badge b-${level}">${esc(String(r.level||"unknown").toUpperCase())}</span></div></div>
     <dl class="risk-facts">
-      <div><dt>Identity</dt><dd>${esc(identityStatus||"Not resolved")} &middot; ${fixed(s.identity_confidence)}<small class="dim"> ${person?"Public profile match score; not independent identity verification":"Registry match score; not a screening clearance"}</small></dd></div>
+      <div><dt>Identity</dt><dd>${esc(identityDisplay||"Not resolved")}${noSelectedIdentity?"":` &middot; ${fixed(s.identity_confidence)}`}<small class="dim"> ${person?"Public profile match score; not independent identity verification":"Registry match score; not a screening clearance"}</small></dd></div>
       <div><dt>Sanctions</dt><dd>${d.sanctions.match?"MATCH":sanctionsAvailable?"No match":"Unavailable / not screened"}</dd></div>
       <div><dt>Adverse media</dt><dd>${mediaUnavailable?"Unavailable / not screened":`${num(ms.total??d.adverse_media.length)} articles`}</dd></div>
       <div><dt>Litigation</dt><dd>${litigationUnavailable?"Unavailable / not screened":`${(d.litigation.cases||[]).length} docket ${(d.litigation.cases||[]).length===1?"match":"matches"}${d.litigation.truncated?" (limited)":""}`}</dd></div>
@@ -701,7 +704,7 @@ function renderDashboard(){
       <td class="dim">${esc(c.source)}</td></tr>`).join("")}</table>`:`<div class="empty">No risk signals fired.</div>`;
 
   const cases=d.litigation.cases||[];
-  $("litigation").innerHTML=cases.length?`<p class="dim">${cases.length} unique docket search matches returned${d.litigation.truncated?"; results limited":""}. Name matches require review; they do not establish wrongdoing.${d.litigation.search_query?` Query: ${esc(d.litigation.search_query)}.`:""}</p><table>
+  $("litigation").innerHTML=cases.length?`<p class="dim">${cases.length} unique docket search matches returned${d.litigation.truncated?"; results limited":""}. Name matches require review; they do not establish wrongdoing.${d.litigation.attribution_status==="unresolved_name_search"?" Identity unresolved; these leads are excluded from the risk score.":""}${d.litigation.search_query?` Query: ${esc(d.litigation.search_query)}.`:""}</p><table>
     <tr><th>Case</th><th>Court</th><th>Filed</th></tr>
     ${cases.slice(0,10).map(c=>`<tr><td>${externalLink(c.url,esc(c.case))}</td>
       <td class="dim">${esc(c.court)}</td><td class="dim">${esc(c.date)}</td></tr>`).join("")}</table>`:`<div class="empty">${esc(litigationUnavailable?"Unavailable / not screened. "+(d.litigation.note||""):d.litigation.note||(d.litigation.truncated?"No qualifying docket matches among the retrieved results; search results were limited.":"No matching docket titles returned by this limited search."))}</div>`;
@@ -723,7 +726,7 @@ function renderDashboard(){
   $("raw").textContent=JSON.stringify(d,null,2);
   refresh();
 }
-function refresh(){syncFilterUI();renderResults();renderBreadcrumb();renderBias();renderCloud();renderCoverage();}
+function refresh(){syncFilterUI();renderResults();renderRecentNews();renderBreadcrumb();renderBias();renderCloud();renderCoverage();}
 function setEvidenceTab(key,focus=false){
   if(!["media","signals","records"].includes(key))return;
   const view=$("view2");if(!view)return;
@@ -855,6 +858,18 @@ function highlightTerms(text,a){
   for(const match of raw.matchAll(re)){result+=esc(raw.slice(last,match.index))+`<mark class="hl">${esc(match[0])}</mark>`;last=match.index+match[0].length;}
   return result+esc(raw.slice(last));
 }
+function renderRecentNews(){
+  const articles=DATA.recent_news||[],summary=DATA.recent_news_summary||{};
+  const metadata=summary.search_metadata||{};
+  const available=summary.available;
+  const window=summary.lookback_days?` · Last ${num(summary.lookback_days)} days`:"";
+  $("recentNewsCount").textContent=`${articles.length} headlines${window}${metadata.result_limit_reached?" · Results limited":""}`;
+  if(!articles.length){
+    const message=available===false?"Recent news source unavailable; general news coverage could not be checked.":available===true?"No recent headlines matched this name in the searched window.":"Recent news was not collected for this report.";
+    $("recentNewsList").innerHTML=`<tr><td colspan="3" class="empty-cell">${esc(message)}</td></tr>`;return;
+  }
+  $("recentNewsList").innerHTML=[...articles].sort((a,b)=>(b.date||"").localeCompare(a.date||"")).map(article=>`<tr><td>${externalLink(article.url,esc(article.title||"Untitled headline"))}</td><td class="dim">${esc(article.source||"Source not reported")}</td><td class="dim">${esc(article.date||"Undated")}</td></tr>`).join("");
+}
 function renderResults(){
   const all=DATA.adverse_media||[];
   let rows=filtered();
@@ -866,9 +881,10 @@ function renderResults(){
   const searchMetadata=DATA.media_summary?.search_metadata||{};
   const searchNames=searchMetadata.search_name?[searchMetadata.search_name]:[];
   const limitNote=searchMetadata.result_limit_reached?" · Results limited":"";
+  const attributionNote=DATA.media_summary?.attribution_status==="unresolved_name_search"?" · Unresolved name matches; excluded from risk score":"";
   const queryNote=searchNames.length?` · Searched: ${searchNames.join(" / ")}`:"";
   const providerNote=searchMetadata.provider?` · ${searchMetadata.provider}${searchMetadata.fallback?" (fallback)":""}`:"";
-  const windowNote=DATA.media_summary?.lookback_months?` · Last ${num(DATA.media_summary.lookback_months)} months`:"";
+  const windowNote=DATA.media_summary?.lookback_days?` · Last ${num(DATA.media_summary.lookback_days)} days`:DATA.media_summary?.lookback_months?` · Last ${num(DATA.media_summary.lookback_months)} months`:"";
   $("mediaCount").textContent=unavailable&&!all.length?"Live media source unavailable":`Showing ${rows.length} of ${all.length} matches${windowNote}${limitNote}${queryNote}${providerNote}`;
   if(!rows.length){
     const message=all.length?"No articles match the selected filters.":unavailable

@@ -78,14 +78,17 @@ Treasury's SDN and alias exports redirect to
 download host as well. After network access is applied, refresh the list with
 `POST /api/v1/admin/ofac/refresh` and check `ofac_names_indexed` in health.
 The GDELT DOC API covers a recent window of up to three months. If GDELT fails
-or returns no headlines, the app tries public Google News RSS (`news.google.com`)
-within a bounded timeout. Allow that domain for the fallback. Provider status
-is recorded separately; a healthy fallback can supply news coverage while
-GDELT remains unavailable. Headlines retain their publisher, date, link and
-retrieval provider. This is an adverse-headline search, not a general news feed.
-The media panel
-distinguishes source failures, searches returning no adverse headlines, and
-articles hidden by selected filters. It is not a complete news archive.
+or returns no locally matched adverse headlines, the app tries public Google
+News RSS (`news.google.com`) within a bounded timeout. Allow that domain for
+the fallback. Provider status is recorded separately; a healthy fallback can
+supply news screening coverage while GDELT remains unavailable. The Evidence
+panel also retrieves a separate recent-news feed for both companies and people.
+Those general headlines provide context and do not raise the risk score. Both
+feeds retain the publisher, date, link, retrieval provider, search window and
+result limits. The media panel distinguishes source failures, searches returning
+no adverse headlines, and articles hidden by selected filters. Name-matched
+headlines are search leads, not proof that an allegation concerns the selected
+person or legal entity, and the bounded feeds are not a complete news archive.
 News queries remove trailing incorporation forms (`Anthropic, PBC` searches
 `Anthropic`) while preserving distinctive business words. Returned news includes
 query and filtering counts. Litigation counts represent deduplicated, bounded

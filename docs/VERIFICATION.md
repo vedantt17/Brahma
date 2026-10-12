@@ -1,5 +1,37 @@
 # Brahma build verification
 
+## Recent news for people and companies — October 12, 2026
+
+- Reproduced the reported Dario Amodei case. The current API selected public
+  human profile `Q103335665` (`CEO and co-founder of Anthropic`) with a 0.8463
+  match score; an earlier zero-score screenshot could not be reproduced. A slow
+  optional Wikidata label lookup now times out without discarding a human
+  profile already retrieved. Public-profile selection still requires independent
+  identity confirmation.
+- Added a separate bounded Google News RSS search for ordinary recent headlines
+  for both people and companies. Search results retain title, publisher, link,
+  date, provider and search limits. These headlines are context only; the risk
+  engine continues to score separately classified adverse headlines. A filtered
+  empty GDELT result and an empty or rejected targeted RSS query now try the
+  next available search path.
+- Unresolved company or person names keep news and docket matches visible as
+  leads, with explicit attribution status, but do not score those matches as
+  established subject risk. A failed identity source displays “Unavailable”
+  instead of a misleading 0.00 match score. Person identity explanations refer
+  to public profiles rather than company registries.
+- Fresh live Dario API request returned HTTP 200 in 17.01 seconds: profile
+  `Q103335665`, 40 recent headlines and one adverse headline. Name-only
+  Anthropic returned 40 recent headlines and two legal-entity candidates;
+  unresolved media and docket leads were excluded from the score. Selecting
+  Anthropic's LEI `984500B6DEB8CEBC4Z70` returned `ANTHROPIC, PBC` and
+  40 recent headlines. GDELT timed out during these checks; Google News RSS
+  supplied live headlines.
+- Full suite: **313 tests and 230 subtests passed** in 53.55 seconds. Focused
+  tests cover separate news persistence, zero-hit fallback, unresolved-lead
+  scoring, delayed profile enrichment, identity wording and recent-news UI.
+  Chromium verified Dario's live report and 40 recent headlines at desktop
+  and mobile widths, with no page errors or horizontal overflow.
+
 ## Public person profiles and namesake selection — October 11, 2026
 
 - Added a distinct human-profile lookup through Wikidata's fixed public API.
