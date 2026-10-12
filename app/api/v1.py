@@ -46,6 +46,8 @@ async def investigate_supplier(request: InvestigationRequest) -> InvestigationRe
             date_of_birth=request.date_of_birth,
             registration_number=request.registration_number,
             aliases=request.aliases,
+            employer=request.employer,
+            profile_id=request.profile_id,
         )
     except Exception as exc:  # noqa: BLE001
         log.exception("investigation failed")

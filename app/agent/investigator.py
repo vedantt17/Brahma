@@ -127,6 +127,10 @@ def _fallback_report(investigation: dict) -> dict:
         + _cite(evidence, supplier.get("primary_source", "SEC"))
     )
     selection = investigation.get("entity_resolution", {}).get("selection") or {}
+    if supplier.get("entity_type") == "individual" and selection.get("status") == "selected":
+        identity = (f"Matched public human profile '{supplier['name']}' "
+                    "without independent identity verification. Reported affiliations are public-source claims, "
+                    "not proof of current employment." + _cite(evidence, supplier.get("primary_source")))
     if selection and selection.get("status") != "selected":
         identity = (f"Identity for '{supplier['name']}' is not confirmed. "
                     + selection.get("reason", "Review the registry candidates.")

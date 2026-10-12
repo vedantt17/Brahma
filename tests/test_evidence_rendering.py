@@ -312,6 +312,31 @@ toggleTerm('other');return {before,after:node('riskbox').innerHTML,
         self.assertEqual(result["address"], "User address")
         self.assertEqual(result["aliases"], "OpenAI, User alias")
 
+    def test_person_candidate_choice_preserves_entered_birth_and_employer(self):
+        data = fixture()
+        data["supplier"]["entity_type"] = "individual"
+        data["query"] = {"name": "Sam Altman", "entity_type": "individual", "date_of_birth": "1985-04-22", "employer": "OpenAI", "country": "US"}
+        data["entity_resolution"]["selection"] = {"status": "ambiguous", "candidates": [{"name": "Sam Altman", "profile_id": "Q12345", "description": "Public entrepreneur", "employers": [{"name": "OpenAI", "id": "Q21708200"}], "date_of_birth": "1900-01-01"}]}
+        result = self.run_js("renderDashboard();const panel=node('identitySelection').innerHTML;setType=type=>{TYPE=type};runInvestigation=()=>({profile:node('f_profile_id').value,dob:node('f_dob').value,employer:node('f_employer').value});return {panel,chosen:selectIdentityCandidate(0)};", data)
+        self.assertIn("Choose the correct person", result["panel"])
+        self.assertIn("Employer: OpenAI", result["panel"])
+        self.assertEqual(result["chosen"], {"profile": "Q12345", "dob": "1985-04-22", "employer": "OpenAI"})
+
+    def test_person_profile_identity_is_qualified_and_qids_are_person_only(self):
+        data = fixture()
+        data["supplier"].update(entity_type="individual", status="probable")
+        data["query"] = {"entity_type": "individual"}
+        data["entity_resolution"]["selected"] = {"description": "Public entrepreneur", "employers": [{"name": '<img src=x> Employer'}]}
+        result = self.run_js("renderDashboard();return {meta:node('caseMeta').innerHTML,risk:node('riskbox').innerHTML,bad:identityCandidateIdentifier({lei:'984500B6DEB8CEBC4Z70',cik:'123'}),good:identityCandidateIdentifier({profile_id:'Q123'})};", data)
+        self.assertIn("Public profile identity: probable", result["meta"])
+        self.assertIn("not independent identity verification", result["risk"])
+        self.assertNotIn("<img", result["meta"])
+        self.assertEqual(result["bad"], "")
+        self.assertEqual(result["good"], "Q123")
+        data["supplier"]["entity_type"] = "organization"
+        data["query"]["entity_type"] = "organization"
+        self.assertEqual(self.run_js("return identityCandidateIdentifier({profile_id:'Q123'});", data), "")
+
     def test_sample_and_escaped_entity_metadata_are_preserved(self):
         data = fixture()
         hostile = '<img src=x onerror="alert(1)">'

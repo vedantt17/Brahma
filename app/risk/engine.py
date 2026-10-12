@@ -229,6 +229,8 @@ def evaluate(
 
 def recommendation(risk: dict) -> str:
     if (risk.get("identity_assessment") or {}).get("confirmed") is False:
+        if risk["identity_assessment"].get("entity_type") == "individual":
+            return "Confirm the person's identity independently before onboarding; a public profile match is not identity verification."
         return "Confirm the legal entity before onboarding; choose a registry candidate or supply identifying details."
     coverage = risk.get("coverage_assessment") or {}
     if coverage.get("complete") is False and risk["level"] not in ("critical", "high"):

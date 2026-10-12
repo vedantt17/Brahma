@@ -287,6 +287,62 @@ def test_generic_ambiguity_requires_choice_even_with_complete_source_coverage(ap
     assert api("GET", f"/api/v1/investigations/{selected['investigation_id']}").json() == selected
 
 
+def test_person_pipeline_uses_human_profiles_and_preserves_person_storage(api, monkeypatch):
+    from app.models import Company, Person
+    from app.resolution.engine import EntityRecord
+    from app.sources.people import PeopleRecords
+    from sqlalchemy import select
+
+    profile = EntityRecord(source="Wikidata", source_id="Q12345", name="Example Person",
+        description="Public professional profile", aliases=["E. Person"],
+        url="https://www.wikidata.org/wiki/Q12345", raw={"entity_type": "individual",
+        "employers": [{"id": "Q123", "name": "Example Labs",
+                       "source_url": "https://www.wikidata.org/wiki/Q12345#P108"}]})
+    profiles = AsyncMock(return_value=PeopleRecords([profile], {"truncated": False}))
+    monkeypatch.setattr(pipeline.people, "search", profiles)
+    sec_lookup, gleif_lookup = AsyncMock(), AsyncMock()
+    monkeypatch.setattr(pipeline.sec, "search", sec_lookup)
+    monkeypatch.setattr(pipeline.gleif, "search", gleif_lookup)
+    monkeypatch.setattr(pipeline.news, "search", AsyncMock(return_value=[]))
+    monkeypatch.setattr(pipeline.courtlistener, "search", AsyncMock(return_value={"available": True, "cases": []}))
+    monkeypatch.setattr(ofac, "screen", AsyncMock(return_value={"match": False, "list_size": 100}))
+    result = api("POST", "/api/v1/supplier/investigate", json={"name": "Example Person",
+        "entity_type": "individual", "employer": "Example Labs", "profile_id": " q12345 "}).json()
+    assert result["supplier"]["name"] == "Example Person"
+    assert result["supplier"]["status"] == "public_profile"
+    assert result["supplier"]["verified"] is False
+    assert result["entity_resolution"]["selected"]["employers"][0]["name"] == "Example Labs"
+    assert result["entity_resolution"]["selected"]["profile_id"] == "Q12345"
+    assert result["query"]["profile_id"] == "Q12345"
+    assert result["sources_consulted"]["people"] is True
+    assert "sec" not in result["sources_consulted"]
+    assert "independently" in result["agent_summary"]["recommendation"]
+    assert any(e["source"] == "Wikidata" and "affiliation" in e["description"] for e in result["evidence"])
+    sec_lookup.assert_not_called()
+    gleif_lookup.assert_not_called()
+    assert api("GET", f"/api/v1/investigations/{result['investigation_id']}").json() == result
+    async def check_storage():
+        async with db.session_factory()() as session:
+            assert not (await session.execute(select(Company))).scalars().all()
+            assert (await session.execute(select(Person))).scalars().first().name == "Example Person"
+    asyncio.run(check_storage())
+
+
+def test_person_namesakes_remain_ambiguous_in_api(api, monkeypatch):
+    from app.resolution.engine import EntityRecord
+    records = [EntityRecord(source="Wikidata", source_id=qid, name="Example Person",
+                            raw={"entity_type": "individual"}) for qid in ("Q123", "Q456")]
+    monkeypatch.setattr(pipeline.people, "search", AsyncMock(return_value=records))
+    monkeypatch.setattr(pipeline.news, "search", AsyncMock(return_value=[]))
+    monkeypatch.setattr(pipeline.courtlistener, "search", AsyncMock(return_value={"available": True, "cases": []}))
+    monkeypatch.setattr(ofac, "screen", AsyncMock(return_value={"match": False, "list_size": 100}))
+    result = api("POST", "/api/v1/supplier/investigate", json={"name": "Example Person", "entity_type": "individual"}).json()
+    assert result["entity_resolution"]["selection"]["status"] == "ambiguous"
+    assert result["entity_resolution"]["selected"] is None
+    assert result["supplier"]["name"] == "Example Person"
+    assert len(result["entity_resolution"]["selection"]["candidates"]) == 2
+
+
 def test_error_and_not_found_contracts(api, monkeypatch):
     monkeypatch.setattr(v1, "investigate", AsyncMock(side_effect=RuntimeError("private-token")))
     failed = api("POST", "/api/v1/supplier/investigate", json={"name": "Acme"})

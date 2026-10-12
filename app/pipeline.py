@@ -26,8 +26,9 @@ from app.resolution import EntityRecord, resolve, verdict
 from app.resolution.embeddings import active_backend
 from app.resolution.normalize import normalize_country, normalize_domain, normalize_name
 from app.resolution.selection import CompanySelection, company_name_key, select_company
+from app.resolution.person_selection import select_person
 from app.risk import evaluate, recommendation
-from app.sources import courtlistener, gdelt, gleif, news, ofac, optional_sources, sec
+from app.sources import courtlistener, gdelt, gleif, news, ofac, optional_sources, people, sec
 
 log = logging.getLogger(__name__)
 
@@ -52,19 +53,24 @@ async def investigate(
     date_of_birth: str | None = None,
     registration_number: str | None = None,
     aliases: list[str] | None = None,
+    employer: str | None = None,
+    profile_id: str | None = None,
 ) -> dict[str, Any]:
     started = time.perf_counter()
     aliases = aliases or []
     full_address = ", ".join(p for p in (address, city) if p) or None
 
     # ---- 1. Live source fan-out ------------------------------------------
-    tasks = [
+    identity_tasks = [
         _safe("sec", sec.search(name, country, registration_number=registration_number)
               if registration_number and registration_number.upper().startswith("CIK:")
               else sec.search(name, country), []),
         _safe("gleif", gleif.search(name, country, registration_number=registration_number)
               if registration_number and entity_type == "organization"
               else gleif.search(name, country), []),
+    ] if entity_type == "organization" else [
+        _safe("people", people.search(name, country, profile_identifier=profile_id), [])]
+    tasks = identity_tasks + [
         _safe("gdelt", news.search(_media_search_name(name, aliases, entity_type)), []),
         _safe("courtlistener", courtlistener.search(name),
               {"available": False, "cases": [], "note": "not run"}),
@@ -96,6 +102,8 @@ async def investigate(
     consulted: dict[str, bool] = {
         k: False for k in ("sec", "gleif", "gdelt", "courtlistener", "ofac")
     }
+    if entity_type == "individual":
+        consulted = {"people": False, "gdelt": False, "courtlistener": False, "ofac": False}
     for task in done:
         try:
             source_name, payload, ok = task.result()
@@ -129,7 +137,10 @@ async def investigate(
     consulted["courtlistener"] = consulted["courtlistener"] and bool(litigation.get("available"))
 
     # ---- 2. Entity resolution --------------------------------------------
-    candidates = sec_records + gleif_records
+    person_records = results.get("people")
+    if person_records is None:
+        person_records = []
+    candidates = sec_records + gleif_records if entity_type == "organization" else person_records
 
     # No officers are supplied by the caller; the engine derives its own
     # cross-source corroboration from the candidate set.
@@ -153,14 +164,20 @@ async def investigate(
                 selection.candidates)
         best = selection.best
     else:
-        best = _select_identity(resolutions, registration_number, name)
-        selection = CompanySelection(best, "selected" if best else "unresolved",
-                                     "Registry identity match." if best else "Individual identity was not established.", resolutions)
+        selection = select_person(resolutions, query_name=name, aliases=aliases,
+                                  country=country, date_of_birth=date_of_birth,
+                                  employer=employer, profile_id=profile_id)
+        retrieval = getattr(person_records, "search_metadata", {}) or {}
+        if selection.best and retrieval.get("truncated") and not profile_id:
+            selection = CompanySelection(None, "ambiguous", "The public profile search was limited; choose a profile.", selection.candidates)
+        best = selection.best
     if best:
         # Downstream ownership and transactions must use the same selected identity.
         resolutions = [best] + [r for r in resolutions if r is not best]
     identity_confidence = best.confidence if best else 0.0
     identity_verdict = verdict(identity_confidence)
+    if best and entity_type == "individual":
+        identity_verdict = "public_profile"
     if best is None:
         identity_verdict = "ambiguous" if selection.status == "ambiguous" else "unverified"
     if best:
@@ -191,8 +208,8 @@ async def investigate(
             log.warning("OFAC re-screen failed: %s", exc)
 
     # ---- 4. Ownership graph, transactions, media aggregation -------------
-    identity_records = _same_identity_records(best, resolutions)
-    ownership = _build_ownership(identity_records)
+    identity_records = ([best] if best else []) if entity_type == "individual" else _same_identity_records(best, resolutions)
+    ownership = _person_affiliations(best) if entity_type == "individual" else _build_ownership(identity_records)
     transactions = _build_transactions(identity_records, supplier["name"])
     media_summary = _summarize_media(media)
     media_summary["available"] = media_available
@@ -213,7 +230,8 @@ async def investigate(
         sources_consulted=consulted,
     )
     risk["identity_assessment"] = {"confirmed": bool(best and supplier["verified"]),
-                                   "status": selection.status, "reason": selection.reason}
+                                   "status": selection.status, "reason": selection.reason,
+                                   "entity_type": entity_type}
 
     investigation: dict[str, Any] = {
         "query": {
@@ -226,6 +244,8 @@ async def investigate(
             "date_of_birth": date_of_birth,
             "registration_number": registration_number,
             "aliases": aliases,
+            "employer": employer,
+            "profile_id": profile_id,
         },
         "supplier": supplier,
         "entity_resolution": {
@@ -234,13 +254,14 @@ async def investigate(
                 "reason": selection.reason,
                 "candidates": [_selection_candidate(r) for r in selection.candidates[:30]],
                 "candidate_count": len(selection.candidates),
-                "retrieval": getattr(gleif_records, "search_metadata", {}) or {},
+                "retrieval": getattr(gleif_records if entity_type == "organization" else person_records, "search_metadata", {}) or {},
             },
             "embedding_backend": active_backend(),
             "candidates_considered": len(candidates),
             "match_threshold": 0.72,
             "selected": (
                 {
+                    **_selection_candidate(best),
                     "source": best.record.source,
                     "name": best.record.name,
                     "confidence": best.confidence,
@@ -332,7 +353,23 @@ def _selection_candidate(result) -> dict[str, Any]:
     return {"name": record.name, "source": record.source, "country": record.country,
             "website": record.website, "lei": record.raw.get("lei"),
             "cik": record.raw.get("cik"), "registration_number": record.raw.get("registered_as"),
-            "confidence": result.confidence, "url": record.url}
+            "confidence": result.confidence, "url": record.url,
+            "profile_id": record.source_id if record.raw.get("entity_type") == "individual" else None,
+            "description": record.description,
+            "employers": record.raw.get("employers", []),
+            "country_basis": record.raw.get("country_basis"),
+            "countries": record.raw.get("countries", [])}
+
+
+def _person_affiliations(best) -> list[dict[str, Any]]:
+    if not best:
+        return []
+    return [{"name": employer.get("name") or employer["id"],
+             "role": "Former reported employer" if employer.get("end_date") else "Reported employer; current status unverified",
+             "relationship_type": "reported_affiliation", "country": None,
+             "source": best.record.source, "evidence_url": employer.get("source_url") or best.record.url,
+             "confidence": best.confidence}
+            for employer in best.record.raw.get("employers", []) if employer.get("name") or employer.get("id")]
 
 
 def _media_search_name(name: str, aliases: list[str], entity_type: str) -> str:
@@ -673,7 +710,7 @@ def _build_graphs(
             {
                 "id": node_id,
                 "label": party["name"],
-                "type": "parent" if is_parent else "person",
+                "type": "entity" if supplier.get("entity_type") == "individual" else "parent" if is_parent else "person",
                 "source": party.get("source"),
                 "confidence": party.get("confidence"),
                 "detail": party.get("role"),
@@ -691,7 +728,7 @@ def _build_graphs(
                     f"{party['name']} is linked to {supplier['name']} as {rel}"
                     + (f" ({party['source']} source)." if party.get("source") else ".")
                 ),
-                "kind": "ownership" if is_parent else "officer",
+                "kind": "affiliation" if supplier.get("entity_type") == "individual" else "ownership" if is_parent else "officer",
             }
         )
 
@@ -772,12 +809,21 @@ def _build_evidence(
         record = res.record
         add(
             record.source,
-            f"{record.source} registry record for '{record.name}'"
+            f"{record.source} {'public human profile' if record.raw.get('entity_type') == 'individual' else 'registry record'} for '{record.name}'"
             + (f" ({record.country})" if record.country else "")
             + f"; resolution confidence {res.confidence:.2f}",
             record.url,
             {"resolution_confidence": res.confidence},
         )
+        for employer in record.raw.get("employers", []):
+            label = employer.get("name") or employer.get("id")
+            if not label:
+                continue
+            add(record.source, f"Public profile reports affiliation with {label}; "
+                + (f"end date recorded: {employer['end_date']}" if employer.get("end_date") else "current employment not independently verified"),
+                employer.get("source_url") or record.url,
+                {"profile_id": record.source_id, "affiliation_id": employer.get("id"),
+                 "current_status": employer.get("current_status")})
         for filing in (record.raw.get("recent_filings") or [])[:3]:
             add(
                 "SEC",
@@ -834,6 +880,8 @@ async def _persist(
     investigation: dict, ownership: list[dict], signals: list, evidence: list[dict]
 ) -> int:
     supplier = investigation["supplier"]
+    if supplier.get("entity_type") == "individual":
+        return await _persist_person_investigation(investigation, ownership, signals, evidence)
 
     async with session_factory()() as db:
         normalized = normalize_name(supplier["name"])
@@ -916,6 +964,35 @@ async def _persist(
             duration_seconds=investigation["duration_seconds"],
             result=investigation,
         )
+        db.add(record)
+        await db.flush()
+        record.result = {**investigation, "investigation_id": record.id}
+        await db.commit()
+        return record.id
+
+
+async def _persist_person_investigation(investigation, affiliations, signals, evidence) -> int:
+    supplier = investigation["supplier"]
+    async with session_factory()() as db:
+        db.add(Person(name=supplier["name"], country=supplier.get("country"),
+                      confidence=supplier["identity_confidence"], source=supplier.get("primary_source"),
+                      company_id=None, role="Public profile investigation"))
+        for affiliation in affiliations:
+            db.add(Relationship(source_entity=supplier["name"], target_entity=affiliation["name"],
+                                relationship_type="reported_affiliation", confidence=affiliation["confidence"],
+                                evidence_source=affiliation["source"]))
+        for item in evidence:
+            db.add(Document(company_id=None, source=item["source"], title=item["description"][:2000],
+                            url=item.get("url"), published_date=item.get("date"),
+                            doc_metadata={k: v for k, v in item.items() if k not in ("id", "source", "url", "description")}))
+        for signal in signals:
+            db.add(RiskSignal(company_id=None, category=signal.category, description=signal.description,
+                              severity=signal.severity, source=signal.source, confidence=signal.confidence))
+        record = Investigation(query_name=investigation["query"]["name"],
+                               query_country=investigation["query"]["country"],
+                               query_website=investigation["query"]["website"], company_id=None,
+                               risk_score=investigation["risk"]["score"], risk_level=investigation["risk"]["level"],
+                               duration_seconds=investigation["duration_seconds"], result=investigation)
         db.add(record)
         await db.flush()
         record.result = {**investigation, "investigation_id": record.id}

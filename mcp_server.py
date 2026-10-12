@@ -34,11 +34,13 @@ async def investigate_supplier(
     country: str = "",
     entity_type: str = "organization",
     date_of_birth: str = "",
+    employer: str = "",
+    profile_id: str = "",
 ) -> dict:
     """Investigate a supplier, company, or person for third-party risk.
 
-    Screens the subject against OFAC sanctions, SEC EDGAR, GLEIF, GDELT adverse
-    media, and CourtListener litigation, then returns one evidence-backed JSON
+    Uses SEC/GLEIF for companies and public Wikidata human profiles for people,
+    with OFAC sanctions, available news and CourtListener litigation, returning one evidence-backed JSON
     object: resolved identity, sanctions result, tagged adverse media, ownership
     graph, and an explainable risk score with a recommendation.
 
@@ -47,12 +49,18 @@ async def investigate_supplier(
         country: Country, to sharpen entity resolution.
         entity_type: "organization" or "individual".
         date_of_birth: For individuals, to confirm or rule out an OFAC name hit.
+        employer: Optional reported employer to distinguish public human profiles.
+        profile_id: Optional public Wikidata human Q identifier, not identity verification.
     """
     payload = {"name": name, "entity_type": entity_type}
     if country:
         payload["country"] = country
     if date_of_birth:
         payload["date_of_birth"] = date_of_birth
+    if employer:
+        payload["employer"] = employer
+    if profile_id:
+        payload["profile_id"] = profile_id
 
     async with httpx.AsyncClient() as client:
         resp = await client.post(

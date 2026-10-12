@@ -152,6 +152,10 @@ function setType(t){TYPE=t;
   $("tOrg").setAttribute("aria-pressed",String(t==="organization"));
   $("tInd").setAttribute("aria-pressed",String(t==="individual"));
   $("wrapDob").style.display=t==="individual"?"":"none";
+  $("wrapEmployer").style.display=t==="individual"?"":"none";
+  $("wrapProfile").style.display=t==="individual"?"":"none";
+  $("wrapReg").style.display=t==="organization"?"":"none";
+  if($("lblCountry"))$("lblCountry").textContent=t==="individual"?"Citizenship (optional)":"Country";
   $("lblName").innerHTML=(t==="individual"?"Full name":"Legal name")+' <span class="dim">(required)</span>';
   $("f_name").placeholder=t==="individual"?"Jane Q Smith":"ABC Manufacturing Ltd";}
 
@@ -192,7 +196,7 @@ function startEntitySearch(type){
   cancelRequest("screen");
   const sameSubject=TYPE===type&&$("f_name").value.trim().toLowerCase()===name.toLowerCase();
   if(!sameSubject){
-    for(const id of ["f_aliases","f_dob","f_reg","f_country","f_city","f_website","f_address"])$(id).value="";
+    for(const id of ["f_aliases","f_dob","f_reg","f_employer","f_profile_id","f_country","f_city","f_website","f_address"])$(id).value="";
   }
   setType(type);$("f_name").value=name;$("f_name").removeAttribute("aria-invalid");
   $("run").disabled=false;
@@ -240,7 +244,7 @@ async function runInvestigation(){
   const ticket=beginRequest("screen");
   $("cancelInvestigation").hidden=false;
   $("run").disabled=true;$("status").className="status";
-  $("status").textContent="Querying OFAC, SEC EDGAR, GLEIF, GDELT and CourtListener...";
+  $("status").textContent=TYPE==="individual"?"Querying public person profiles, OFAC, news and CourtListener...":"Querying OFAC, SEC EDGAR, GLEIF, news and CourtListener...";
   const t0=performance.now();
   const progress=setInterval(()=>{
     if(!isCurrent(ticket))return;
@@ -254,7 +258,9 @@ async function runInvestigation(){
         country:$("f_country").value.trim()||null,city:$("f_city").value.trim()||null,
         address:$("f_address").value.trim()||null,website:$("f_website").value.trim()||null,
         date_of_birth:TYPE==="individual"?($("f_dob").value.trim()||null):null,
-        registration_number:$("f_reg").value.trim()||null,
+        registration_number:TYPE==="organization"?($("f_reg").value.trim()||null):null,
+        employer:TYPE==="individual"?($("f_employer").value.trim()||null):null,
+        profile_id:TYPE==="individual"?($("f_profile_id").value.trim()||null):null,
         aliases:$("f_aliases").value.split(",").map(s=>s.trim()).filter(Boolean)})}));
     if(!isCurrent(ticket))return;
     DATA=data;CURRENT_ID=null;DATA_ORIGIN="live";
@@ -571,26 +577,30 @@ function renderIdentitySelection(){
   const panel=$("identitySelection");
   panel.hidden=!selection||selection.status==="selected"||isSample(DATA,DATA_ORIGIN);
   if(panel.hidden){panel.innerHTML="";return;}
-  const headings={ambiguous:"Choose the correct company",not_found:"Company identity not resolved",identifier_conflict:"Company details conflict"};
+  const person=DATA.query?.entity_type==="individual"||DATA.supplier.entity_type==="individual";
+  const subject=person?"person":"company";
+  const headings={ambiguous:`Choose the correct ${subject}`,not_found:`${person?"Person":"Company"} identity not resolved`,identifier_conflict:`${person?"Person":"Company"} details conflict`};
   const candidates=selection.candidates||[];
-  panel.innerHTML=`<div class="risk-recommendation"><strong>${esc(headings[selection.status]||"Company identity requires review")}</strong>
-    <p>${esc(selection.reason||"Add a company identifier, country, or website to distinguish the intended company.")}</p>
-    <p class="dim">Registry candidates are possible matches. Review the legal name and country before selecting. Selection uses the registry country and preserves your other details.</p>
+  panel.innerHTML=`<div class="risk-recommendation"><strong>${esc(headings[selection.status]||`${person?"Person":"Company"} identity requires review`)}</strong>
+    <p>${esc(selection.reason||(person?"Add a public employer, country, date of birth, or public profile ID to distinguish this person.":"Add a company identifier, country, or website to distinguish the intended company."))}</p>
+    <p class="dim">${person?"Public profile candidates are possible matches. Review the description and employer before selecting. Your entered date of birth and other details are preserved.":"Registry candidates are possible matches. Review the legal name and country before selecting. Selection uses the registry country and preserves your other details."}</p>
     <p class="dim">News and docket matches below remain a name search until identity is confirmed.${selection.candidate_count>candidates.length?` Showing ${candidates.length} of ${num(selection.candidate_count)} candidates; add details to narrow the search.`:""}</p>
     ${candidates.map((candidate,index)=>`<div class="identity-candidate"><strong>${esc(candidate.name)}</strong> · ${esc(candidate.country||"Country not reported")}
       ${candidate.website?` · ${esc(candidate.website)}`:""}
-      ${identityCandidateIdentifier(candidate)?`<button type="button" class="ghost" onclick="selectIdentityCandidate(${index})">Use this company · ${esc(identityCandidateIdentifier(candidate))}</button>`:'<span class="dim"> No supported identifier available; add details and retry.</span>'}</div>`).join("")}
-    <button type="button" class="ghost" onclick="editIdentityDetails()">Edit company details</button></div>`;
+      ${person?`<p class="dim">${esc(candidate.description||"No public description available")}${candidate.employers?.length?` · Employer: ${candidate.employers.map(e=>esc(e.name||e.id)).join(", ")}`:""}</p>`:""}
+      ${identityCandidateIdentifier(candidate)?`<button type="button" class="ghost" onclick="selectIdentityCandidate(${index})">Use this ${subject} · ${esc(identityCandidateIdentifier(candidate))}</button>`:'<span class="dim"> No supported identifier available; add details and retry.</span>'}</div>`).join("")}
+    <button type="button" class="ghost" onclick="editIdentityDetails()">Edit ${subject} details</button></div>`;
 }
 function restoreInvestigationQuery(){
   const query=DATA?.query||{};
   setType(query.entity_type||"organization");
-  const fields={f_name:"name",f_country:"country",f_city:"city",f_address:"address",f_website:"website",f_dob:"date_of_birth",f_reg:"registration_number"};
+  const fields={f_name:"name",f_country:"country",f_city:"city",f_address:"address",f_website:"website",f_dob:"date_of_birth",f_reg:"registration_number",f_employer:"employer",f_profile_id:"profile_id"};
   for(const [id,key] of Object.entries(fields))$(id).value=query[key]||"";
   $("f_aliases").value=(query.aliases||[]).join(", ");
 }
 function editIdentityDetails(){restoreInvestigationQuery();newScreening();$("f_name").focus();}
 function identityCandidateIdentifier(candidate){
+  if(DATA.query?.entity_type==="individual"||DATA.supplier.entity_type==="individual")return /^Q[1-9]\d*$/i.test(candidate.profile_id||"")?candidate.profile_id.toUpperCase():"";
   if(/^[A-Z0-9]{18}[0-9]{2}$/i.test(candidate.lei||""))return candidate.lei.toUpperCase();
   if(/^\d{1,10}$/.test(String(candidate.cik||"")))return "CIK:"+candidate.cik;
   return "";
@@ -599,17 +609,22 @@ function selectIdentityCandidate(index){
   const candidate=DATA.entity_resolution?.selection?.candidates?.[index];
   if(!candidate||!identityCandidateIdentifier(candidate))return;
   const originalName=DATA.query?.name;
-  restoreInvestigationQuery();$("f_name").value=candidate.name;$("f_reg").value=identityCandidateIdentifier(candidate);
+  restoreInvestigationQuery();$("f_name").value=candidate.name;
+  const person=TYPE==="individual";
+  $(person?"f_profile_id":"f_reg").value=identityCandidateIdentifier(candidate);
   if(originalName&&originalName.toLowerCase()!==candidate.name.toLowerCase()){
     $("f_aliases").value=[...new Set([originalName,...(DATA.query?.aliases||[])])].join(", ");
   }
-  if(candidate.country)$("f_country").value=candidate.country;
+  if(candidate.country&&!person)$("f_country").value=candidate.country;
   return runInvestigation();
 }
 function renderDashboard(){
   const d=DATA,s=d.supplier,r=d.risk,ms=d.media_summary;
+  const person=s.entity_type==="individual";
+  const publicProfile=d.entity_resolution?.selected||s.public_profile||{};
   const identitySelection=d.entity_resolution?.selection;
-  const identityStatus=identitySelection&&identitySelection.status!=="selected"?identitySelection.status:s.status;
+  const rawIdentityStatus=identitySelection&&identitySelection.status!=="selected"?identitySelection.status:s.status;
+  const identityStatus=rawIdentityStatus==="public_profile"?"public profile match":rawIdentityStatus;
   renderIdentitySelection();
   const level=["low","medium","high","critical"].includes(r.level)?r.level:"neutral";
   const sanctionsAvailable=d.sanctions.available!==false&&d.sources_consulted?.ofac!==false&&Number(d.sanctions.list_size)>0;
@@ -624,12 +639,15 @@ function renderDashboard(){
   $("biasTable").innerHTML="";
   setEvidenceTab("media");
   $("rTab").textContent=s.name;
-  $("caseMeta").innerHTML=`<span class="case-meta-item">${esc(s.country||"Country not reported")}</span>
+  $("caseMeta").innerHTML=`<span class="case-meta-item">${person?"Citizenship: ":""}${esc(s.country||"Country not reported")}</span>
     <span class="case-meta-item">${esc(s.entity_type||"Type not reported")}</span>
-    <span class="case-meta-item">Registry identity: ${esc(identityStatus||"Not resolved")}</span>
+    <span class="case-meta-item">${person?"Public profile identity":"Registry identity"}: ${esc(identityStatus||"Not resolved")}</span>
     <span class="case-mode">${esc(provenance(d,DATA_ORIGIN))}</span>`;
   if(!sample&&d.query?.name&&d.query.name!==s.name){
-    $("caseMeta").innerHTML+=`<span class="case-meta-item">Searched as ${esc(d.query.name)} · ${esc(s.primary_source||"Source")} legal name shown</span>`;
+    $("caseMeta").innerHTML+=`<span class="case-meta-item">Searched as ${esc(d.query.name)} · ${esc(s.primary_source||"Source")} ${person?"public profile name":"legal name"} shown</span>`;
+  }
+  if(person&&!sample&&(publicProfile.description||publicProfile.employers?.length)){
+    $("caseMeta").innerHTML+=`<span class="case-meta-item">${esc(publicProfile.description||"")}${publicProfile.employers?.length?` · Reported affiliations: ${publicProfile.employers.map(e=>esc(e.name||e.id)+(e.end_date?" (former)":" (current status unverified)")).join(", ")}`:""}</span>`;
   }
   $("riskbox").classList.add("risk-overview");
   $("riskbox").innerHTML=`
@@ -637,7 +655,7 @@ function renderDashboard(){
       <div><strong class="risk-score-number">${num(evidenceScore(r.score,100))}</strong><span class="risk-score-denom">/100</span>
       <span class="badge b-${level}">${esc(String(r.level||"unknown").toUpperCase())}</span></div></div>
     <dl class="risk-facts">
-      <div><dt>Identity</dt><dd>${esc(identityStatus||"Not resolved")} &middot; ${fixed(s.identity_confidence)}<small class="dim"> Registry match score; not a screening clearance</small></dd></div>
+      <div><dt>Identity</dt><dd>${esc(identityStatus||"Not resolved")} &middot; ${fixed(s.identity_confidence)}<small class="dim"> ${person?"Public profile match score; not independent identity verification":"Registry match score; not a screening clearance"}</small></dd></div>
       <div><dt>Sanctions</dt><dd>${d.sanctions.match?"MATCH":sanctionsAvailable?"No match":"Unavailable / not screened"}</dd></div>
       <div><dt>Adverse media</dt><dd>${mediaUnavailable?"Unavailable / not screened":`${num(ms.total??d.adverse_media.length)} articles`}</dd></div>
       <div><dt>Litigation</dt><dd>${litigationUnavailable?"Unavailable / not screened":`${(d.litigation.cases||[]).length} docket ${(d.litigation.cases||[]).length===1?"match":"matches"}${d.litigation.truncated?" (limited)":""}`}</dd></div>
@@ -688,10 +706,11 @@ function renderDashboard(){
     ${cases.slice(0,10).map(c=>`<tr><td>${externalLink(c.url,esc(c.case))}</td>
       <td class="dim">${esc(c.court)}</td><td class="dim">${esc(c.date)}</td></tr>`).join("")}</table>`:`<div class="empty">${esc(litigationUnavailable?"Unavailable / not screened. "+(d.litigation.note||""):d.litigation.note||(d.litigation.truncated?"No qualifying docket matches among the retrieved results; search results were limited.":"No matching docket titles returned by this limited search."))}</div>`;
 
+  if($("ownershipTitle"))$("ownershipTitle").textContent=person?"Reported affiliations":"Ownership & officers";
   $("ownership").innerHTML=d.ownership.length?`<table>
     <tr><th>Name</th><th>Role</th><th>Conf.</th></tr>
     ${d.ownership.slice(0,12).map(o=>`<tr><td>${esc(o.name)}</td><td class="dim">${esc(o.role)}</td>
-      <td>${fixed(o.confidence)}</td></tr>`).join("")}</table>`:`<div class="empty">No ownership records.</div>`;
+      <td>${fixed(o.confidence)}</td></tr>`).join("")}</table>`:`<div class="empty">${person?"No public affiliations returned.":"No ownership records."}</div>`;
 
   const a=d.agent_summary;
   $("report").innerHTML=`<div class="dim" style="font-size:11.5px;margin-bottom:8px">${esc(a.generated_by||"")}</div>

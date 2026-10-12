@@ -58,6 +58,14 @@ and alias candidates and reports truncation. Ownership/insider enrichment runs
 only for the selected entity. An unresolved identity cannot authorize onboarding,
 even when the screening sources responded. Companies absent from the supported
 registries remain unresolved rather than receiving an invented identity.
+Individual searches use public Wikidata human profiles instead of SEC/GLEIF
+company registries. Add an employer/organization, citizenship or optional public
+profile identifier to help distinguish namesakes. Profile candidates include
+public descriptions and sourced employer claims; undated/former claims do not
+establish current employment. Matching a public profile is not independent
+identity verification, and user-entered birth dates are preserved. People absent
+from the public source stay unresolved. Allow `www.wikidata.org` for this path.
+API and MCP clients can pass optional `employer` and `profile_id` (`Q...`) fields.
 
 Live results require outbound access to the source adapters. In a restricted
 cloud environment, allow `api.gleif.org`, `api.gdeltproject.org`, `www.sec.gov`,

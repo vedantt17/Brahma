@@ -1,5 +1,42 @@
 # Brahma build verification
 
+## Public person profiles and namesake selection — October 11, 2026
+
+- Added a distinct human-profile lookup through Wikidata's fixed public API.
+  Bounded name search and batched profile retrieval accept only human entities
+  (`P31=Q5`), with source aliases, descriptions, occupations, precise public
+  birth facts, citizenship and dated/undated employer claims. No person catalog
+  or employer assertion is hardcoded.
+- Individuals no longer query company registries. Human selection uses person
+  names without removing company suffix words, public-profile identifiers,
+  optional employer/citizenship/birth-date details and namesake ambiguity.
+  Missing public fields cannot manufacture corroboration. Former employment,
+  year precision and multiple citizenships have explicit tests.
+- Added optional employer/profile-ID API and MCP fields and person-specific
+  intake/choice/reporting. No DOB is automatically filled from a chosen profile.
+  Public profile matches remain explicitly unverified for independent identity
+  checks and cannot authorize onboarding. Affiliation edges/evidence carry the
+  public source and status caveats; individual investigations persist person
+  records with no false company record.
+- Saved `www.wikidata.org` access and reusable person checks to the environment
+  configuration draft while preserving existing destinations. Initial probes
+  were CONNECT 403; subsequent live calls succeeded. Draft persistence is not
+  claimed as publication; successful calls establish current connectivity.
+- Real Sam Altman individual request with employer OpenAI returned HTTP 200
+  in 14.31s, public human profile `Q7407093`, an OpenAI affiliation (`Q21708200`)
+  and 20 news headlines. Name-only Sam Altman also selected that profile in
+  12.02s. John Smith remained ambiguous with ten profiles; an unknown invented
+  person stayed unresolved. News/dockets remain bounded name-search evidence.
+- Full suite: **299 tests and 230 subtests passed** in 44.51 seconds.
+  Following small display refinements, all 31 evidence-renderer tests passed.
+  Syntax and whitespace checks passed. API tests verify human-only source
+  routing, namesakes, profile metadata and person storage using isolated fixtures.
+- Chromium submitted real person searches at 1440/390px, displayed Sam Altman's
+  OpenAI-associated profile with the public-match caveat and news, and showed
+  the John Smith chooser. No page errors or horizontal overflow. Screenshots:
+  `artifacts/person-sam-1440.png`, `artifacts/person-sam-390.png`,
+  `artifacts/person-namesake-390.png`.
+
 ## General company disambiguation — October 11, 2026
 
 - Replaced organization selection by first fuzzy/exact name hit with a separate

@@ -29,6 +29,10 @@ and the media search window in the payload; failed coverage is not a clean resul
 When entity_resolution.selection is ambiguous, not_found or identifier_conflict,
 no company identity has been selected. Do not describe a candidate as the resolved
 company or attribute name-search news/dockets to a particular legal entity.
+For individuals, Wikidata is a public human profile source, not independent
+identity verification. Employer claims may be former or undated; do not infer
+current employment. Citizenship is not residence. A selected profile does not
+authorize onboarding or turn name-search headlines into verified allegations.
 
 Be direct and concise. This output is consumed by an automated procurement
 agent, not a human reader."""

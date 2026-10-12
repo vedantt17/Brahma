@@ -74,6 +74,7 @@ class Settings(BaseSettings):
         # plain-text 429 above that; 5s exactly still trips it, so allow ~8s.
         "api.gdeltproject.org": 0.12,
         "news.google.com": 0.5,
+        "www.wikidata.org": 2.0,
         "www.courtlistener.com": 2.0,
     }
 

@@ -10,7 +10,7 @@
 <link rel="preload" href="/static/vendor/geist-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/static/brahma.css?v=workspace-1">
 <link rel="stylesheet" href="/static/evidence-workspace.css?v=workspace-5">
-<link rel="stylesheet" href="/static/workspace.css?v=company-selection-9">
+<link rel="stylesheet" href="/static/workspace.css?v=person-selection-10">
 </head>
 <body>
 <a class="skip-link" href="#workspace">Skip to workspace</a>
@@ -50,8 +50,10 @@
               <div class="full"><label id="lblName" for="f_name">Legal name <span class="dim">(required)</span></label><input id="f_name" placeholder="e.g. Wells Fargo &amp; Company" autocomplete="organization" maxlength="300" required></div>
               <div class="full"><label for="f_aliases">Aliases or trading names</label><input id="f_aliases" placeholder="Trading names, separated by commas" maxlength="1000"></div>
               <div id="wrapDob" style="display:none"><label for="f_dob">Date of birth</label><input id="f_dob" type="date"></div>
+              <div id="wrapEmployer" style="display:none"><label for="f_employer">Employer or organization</label><input id="f_employer" placeholder="Public employer or organization name" maxlength="256"></div>
+              <div id="wrapProfile" style="display:none"><label for="f_profile_id">Public profile ID (optional)</label><input id="f_profile_id" placeholder="Wikidata ID, e.g. Q12345" maxlength="32"></div>
               <div id="wrapReg"><label for="f_reg">Registration number</label><input id="f_reg" placeholder="Company number or 20-character LEI" maxlength="100"></div>
-              <div><label for="f_country">Country</label><input id="f_country" placeholder="e.g. United States" autocomplete="country-name" maxlength="100"></div>
+              <div><label id="lblCountry" for="f_country">Country</label><input id="f_country" placeholder="e.g. United States" autocomplete="country-name" maxlength="100"></div>
               <div><label for="f_city">City</label><input id="f_city" placeholder="e.g. San Francisco" autocomplete="address-level2" maxlength="100"></div>
               <div><label for="f_website">Website or domain</label><input id="f_website" placeholder="e.g. example.com" maxlength="300"></div>
               <div class="full"><label for="f_address">Street address</label><input id="f_address" placeholder="Street address" autocomplete="street-address" maxlength="300"></div>
@@ -99,7 +101,7 @@
         <section class="evidence-panel" role="tabpanel" id="evidence-panel-records" data-evidence-panel="records" aria-labelledby="evidence-tab-records" tabindex="0" hidden>
           <section class="record-summary"><div class="section-heading"><h2>Investigation summary</h2><span class="section-scope">Full investigation</span></div><div id="report"></div></section>
           <div class="two"><section class="card"><h2>Sanctions / OFAC</h2><div id="sanctions"></div></section><section class="card"><h2>Risk contributions</h2><div id="contribs"></div></section></div>
-          <div class="two"><section class="card"><h2>Litigation</h2><div id="litigation"></div></section><section class="card"><h2>Ownership &amp; officers</h2><div id="ownership"></div></section></div>
+          <div class="two"><section class="card"><h2>Litigation</h2><div id="litigation"></div></section><section class="card"><h2 id="ownershipTitle">Ownership &amp; officers</h2><div id="ownership"></div></section></div>
         </section>
       </div></div>
     </section>
@@ -127,7 +129,7 @@
   </main>
 </div>
 <script src="/static/vendor/lucide.min.js"></script>
-<script src="/static/app.js?v=company-selection-9"></script>
+<script src="/static/app.js?v=person-selection-10"></script>
 <script src="/static/motion.js?v=polish-1"></script>
 </body>
 </html>

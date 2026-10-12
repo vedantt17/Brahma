@@ -27,11 +27,19 @@ class InvestigationRequest(BaseModel):
         default_factory=list, max_length=20,
         description="Known trading names or alternate spellings.",
     )
+    employer: str | None = Field(None, max_length=256, description="Reported employer or organization for a person.")
+    profile_id: str | None = Field(None, pattern=r"^Q[1-9][0-9]*$", max_length=32,
+                                 description="Public Wikidata human profile identifier; not identity verification.")
 
     @field_validator("name", mode="before")
     @classmethod
     def strip_name(cls, value):
         return value.strip() if isinstance(value, str) else value
+
+    @field_validator("profile_id", mode="before")
+    @classmethod
+    def normalize_profile_id(cls, value):
+        return value.strip().upper() if isinstance(value, str) else value
 
 
 class StrategyRequest(BaseModel):
