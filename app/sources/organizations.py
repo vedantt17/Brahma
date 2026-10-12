@@ -7,6 +7,7 @@ import time
 from app.config import settings
 from app.http_client import fetch_json
 from app.resolution.engine import EntityRecord
+from app.resolution.selection import company_name_key
 from app.sources.people import API, _claims, _ids, _label, _qualifier_time, _value
 
 
@@ -16,11 +17,12 @@ class OrganizationRecords(list):
         self.search_metadata = metadata
 
 
-async def _entities(ids: list[str]) -> dict:
+async def _entities(ids: list[str], *, labels_only: bool = False) -> dict:
     data = await fetch_json(API, params={"action": "wbgetentities", "ids": "|".join(ids),
                                       "format": "json", "languages": "en",
                                       "languagefallback": "1",
-                                      "props": "labels|aliases|descriptions|claims"}, ttl_hours=24)
+                                      "props": "labels" if labels_only else
+                                      "labels|aliases|descriptions|claims"}, ttl_hours=24)
     if not isinstance(data, dict) or not isinstance(data.get("entities"), dict):
         raise RuntimeError("Wikidata organization profiles unavailable or malformed")
     return data["entities"]
@@ -43,11 +45,16 @@ async def search(name: str, country: str | None = None, limit: int = 20) -> Orga
     if not ids:
         return OrganizationRecords([], {**metadata, "returned_count": 0})
     entities = await _entities(ids)
+    query_key = company_name_key(name)
     organizations = [(qid, entities[qid]) for qid in ids if qid in entities
                      and "Q5" not in _ids(entities[qid], "P31")
                      and (_claims(entities[qid], "P856") or
                           _claims(entities[qid], "P169") or
-                          _claims(entities[qid], "P112"))]
+                          _claims(entities[qid], "P112"))
+                     and query_key in {company_name_key(n) for n in
+                                       [_label(entities[qid]),
+                                        *(a.get("value") for a in
+                                          (entities[qid].get("aliases") or {}).get("en", []))] if n}]
     related = list(dict.fromkeys(qid for _, entity in organizations
                                 for prop in ("P17", "P169", "P112")
                                 for qid in _ids(entity, prop)))[:50]
@@ -57,7 +64,8 @@ async def search(name: str, country: str | None = None, limit: int = 20) -> Orga
             remaining = settings.investigation_timeout_seconds - (time.monotonic() - started) - 2
             if remaining <= 0:
                 raise TimeoutError("Organization label enrichment budget exhausted")
-            labels = await asyncio.wait_for(_entities(related), timeout=min(8.0, remaining))
+            labels = await asyncio.wait_for(_entities(related, labels_only=True),
+                                            timeout=min(8.0, remaining))
         except (RuntimeError, TimeoutError):
             metadata["labels_available"] = False
         else:
@@ -96,7 +104,7 @@ async def search(name: str, country: str | None = None, limit: int = 20) -> Orga
         countries = _ids(entity, "P17")
         country_entity = labels.get(countries[0], {}) if len(countries) == 1 else {}
         code = next((v for c in _claims(country_entity, "P297")
-                     if isinstance(v := _value(c), str)), None)
+                     if isinstance(v := _value(c), str)), None) or _label(country_entity)
         aliases = [a["value"] for a in (entity.get("aliases") or {}).get("en", [])
                    if a.get("value")]
         records.append(EntityRecord(
