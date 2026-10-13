@@ -75,7 +75,7 @@ Several data-integrity risks were reviewed and corrected in code:
 3. **Model self-assessment:** strategy audit percentages are labelled as a model self-assessment unless evidence has been independently checked. The UI does not imply citations were independently verified when they were not.
 4. **Presentation semantics:** sample data remains explicitly illustrative; categories can overlap; risk-term counts represent articles; language flags are not claims of factual inaccuracy.
 
-Details and review history are in [QA findings](QA_FINDINGS.md). The original technical description was retained in [UPSTREAM_README.md](UPSTREAM_README.md) for context; those historical claims and benchmarks were not independently revalidated simply by preserving that document.
+Details and review history are in [QA findings](QA_FINDINGS.md).
 
 ## 5. Analysis-report readability work
 
@@ -185,4 +185,3 @@ Do not expose this loopback research build directly to the public internet. Shar
 - [DESIGN.md](DESIGN.md): design decisions, motion rules and research links.
 - [VERIFICATION.md](VERIFICATION.md): test/browser results, smoke-test observation and remaining limitations.
 - [QA_FINDINGS.md](QA_FINDINGS.md): independent review findings and their resolution status.
-- [UPSTREAM_README.md](UPSTREAM_README.md): retained original technical documentation.
