@@ -154,4 +154,4 @@ See [docs/VERIFICATION.md](docs/VERIFICATION.md) for verification details and kn
 
 Brahma uses FastAPI and SQLAlchemy on the backend, asynchronous HTTP source adapters for public data, and a static HTML/CSS/JavaScript interface. The API and the browser workspace use the same investigation pipeline. Optional language-model providers help produce narrative summaries; source retrieval, entity matching, coverage reporting, and risk signals remain explicit parts of the returned report.
 
-Brahma is Vedant Tiwari's project, created with help from Prakhar Anand and developed further with AI coding tools. The Lucide license is included under `static/vendor/`.
+Brahma is Vedant Tiwari's project, developed further with AI coding tools. The Lucide license is included under `static/vendor/`.

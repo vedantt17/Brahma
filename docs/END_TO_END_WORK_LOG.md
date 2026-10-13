@@ -11,7 +11,7 @@ This is the working handoff for the Brahma/Credence project work discussed acros
 
 The project work began while preparing a technical demonstration for Credence ID's Solution Engineer interview. We discussed ideas that could use Credence's mobile-ID SDKs, then tested the underlying business need instead of choosing an integration merely to include an SDK. Rental pickup exception handling and integration diagnostics were considered, along with ways Credence APIs could fit existing work. The concern was whether those features solved a real operator problem or invented one to satisfy the assignment.
 
-The direction then shifted to developing **Brahma**, Vedant Tiwari's entity-intelligence project. Prakhar Anand had helped with the original project, and Vedant continued developing it as a technical demonstration for Credence ID. The work focused on preserving its investigation capabilities while making the live application a coherent, usable research and decision workspace.
+The direction then shifted to developing **Brahma**, Vedant Tiwari's entity-intelligence project, as a technical demonstration for Credence ID. The work focused on preserving its investigation capabilities while making the live application a coherent, usable research and decision workspace.
 
 The product was kept within the existing FastAPI, SQLAlchemy, static HTML/CSS/JavaScript stack. The aim became a coherent, usable research and decision workspace rather than a visual mockup. The repository retains historical technical documentation and Git history alongside the ongoing development of Brahma.
 
