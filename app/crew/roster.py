@@ -16,9 +16,9 @@ from __future__ import annotations
 
 from typing import Any
 
-# The e-mail the crew's alerting agent escalates HIGH/CRITICAL findings to,
-# mirroring the original crew's distribute_report_alert task.
-ALERT_RECIPIENT = "prakharanandus000@gmail.com"
+# The destination label shown for HIGH/CRITICAL findings. This crew records an
+# escalation in the report; it does not send an email.
+ALERT_RECIPIENT = "Compliance review queue"
 
 # ---------------------------------------------------------------------------
 # Static crew definition
